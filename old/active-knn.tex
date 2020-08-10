@@ -26,7 +26,7 @@
 
 \DeclareMathOperator*{\argmax}{arg\,max}
 
-\title{Active learning using the near-Neighborhoods algorithm}
+\title{An active $k$-nearest neighbor algorithm}
 
 \begin{document}
 
@@ -36,114 +36,28 @@
 
 Basic Transductive setup:
 \begin{itemize}
-\item Intance set $\X =\{x_1,\dots,x_n\}$, $x_i \in {\bf X}$, where
-  ${\bf X}$ is a metric space. . The set
-  $\X$ is fixed and known to the learner. The probability of each $x
-  \in \R$ is $1/n$.
+\item Intance set $\X =\{x_1,\dots,x_n\}$, $x_i in \R^d$. The set $\X$
+  is fixed and known to the learner. The probability of each $x \in
+  \R$ is $1/n$. 
 \item Label space $\Y = \{-1,+1\}$. Each $x \in \X$ is associated with
   a conditional probability function $\eta(x) = \pr(Y=1|X=x)$.
 \item Let $g^*$ denote the Bayes-optimal classifier on $\X$:
   $$ g^*(x) = \mbox{sign}(2 \eta(x) - 1) .$$
   \item Label Queries: the algorithm can select any example $x \in
-    \X$, as a response it gets a label in $\Y$ chosen acccording to
+    \X$, as a response it gets a label in $\Y$ chosesn acccording to
     $\eta(x)$.    
   \end{itemize}
 
 \section{Notation}
 \begin{itemize}
-\item {\bf Balls:} For any $x \in \X$ an $r\geq0$,
-  $B(x,r)$ denotes the subset of $\X$ inside ball of radius $r$ centered at $x$.
+  \item {\bf Balls:} $B(x,r)$ denotes a ball of radius $r$ centered at $x$.
   \item {\bf Probability of a ball} The probability of a ball is the
     fraction of points in $\X$ that fall inside $B(x,r)$.
-    $$ \mu(B(x,r)) = \frac{ |B(x,r)|}{n}$$
-  \item {\bf conditional probability given a ball:}
-    $$ \eta(B(x,r)) = \frac{\sum_{x \in B(x,r)}\eta(z)}{|B(x,r)|}$$
+    $$ \mu(B(x,r)) = \frac{ |B(x,r) \cap \X|}{n} $$
   \item {\bf measuring radius in terms of probability}
-For any $x \in X$ and any $p > 0$, let $r_p(x)$ denote the smallest
-radius $r$ such that $\mu(B(x, r)) \geq p$.
+For any $x \in X$ and any $p > 0$, let $r_p(x)$ denote the smallest radius $r$ such that $\mu(B(x, r)) \geq p$. 
 \end{itemize}
 
-\section{The near-neighborhoods algorithm}
-
-Fix the learning rate $\eta$ and the abstaining interval $\Delta$.
-
-As $\X$ is finite we have a finite set of possible
-balls (recall that a ball is identified with the subset of $\X$ that
-falls inside the ball).
-
-Each ball defines two prediction functions $E_{x,r,+1}$ and
-$E_{x,r,-1}$, defined as
-\[
-  E_{x,r,s}(z) = \begin{cases}
-    s & \mbox { if } z \in B(x,r)\\
-    0 & \mbox{ Otherwise }
-  \end{cases}
-\]
-
-When predicting on a point $x$ we consider not just the ball centered
-at $z$, which is what we did in the AKNN paper. Instead, we consider
-balls the contain $x$ but are not centered on it.
-
-Specifically a point $x$ and a radius $R$, define a set of {\em local predictors} $\E(x,R)$ as
-follows. Let $B(z,r)$ be a ball such that $B(z,r) \subseteq B(x,R)$
-and such that $x \in B(z,r)$. $B(z,r)$ corresponds to the two predictors
-$E(z,r,+1)$ and $E(z,r,-1)$. $\E(x,R)$ contains all prediction
-function defined in this way.
-
-\newcommand{\emperr}{\hat{\epsilon}}
-\newcommand{\emplog}{\hat{\ell}}
-
-Suppose we have a set of labels. Using these labels we can compute the
-empirical error of each prediction function $f=E(x,r,s)$. we use
-$\emperr(f)$ to denote this empirical error. (You can think of it as
-the average over all labeled examples, where the contribution outside
-the ball is zero).
-
-Given the empirical errors we can compute the log ratio for a
-neighborhood of radius $R$:
-
-\[
-  \emplog(x,R) = \frac
-  {\sum_{E_{z,r,+} \in \E(x,R)}e^{-\eta \emperr(E_{z,r,+})}}
-  {\sum_{E_{z,r,-} \in \E(x,R)}e^{-\eta \emperr(E_{z,r,-})}}
-\]
-
-Using the parameter $\Delta$ as in the exponential weights scheme, we
-get a prediction for each radius $R$:
-\[
-  p(x,R) = \begin{cases}
-    +1 & \mbox{ if } \emplog(x,R) > \Delta \\
-    0 &  \mbox{ if } |\emplog(x,R)| \leq \Delta \\
-    -1 & \mbox{ if } \emplog(x,R) < - \Delta
-  \end{cases}
-\]
-
-Finally, we combine the predictions for a fixed $x$ over all $R$ by
-using the smallest $R$ for which $p(x,R)$ is not zero. Formally:
-define $R_x^* = \min\{R \mbox{ s.t. } p(x,R) \neq 0\}$, then $p(x)
-\doteq p(x,R_x^*)$
-
-This scheme associates with each unlabeled example $x \in \X$ a {\em
-  sequence of log-ratio values}, each associated with a differet
-neighborhood size $R$. As in the exponenti 
-
-
-for $s \in \{-1,+1\}$. Each expert predicts $s$ in the ball $B(z,r)$
-and predicts $0$ (i.e. abstain) on the complement of $B(z,r)$.
-
-Points are queried in phases. In phase $t$ the points are selected
-uniformly at random from a mixture of two distributions: the uniform
-distribution over all of $\X$ (the global sample at phase $t$),
-and uniformly at random from $\X_t \subseteq \X$ (the active sample at
-phase $t$) 
-
-To estimate the error of an expert $\E(z,r,s)$ we use only samples
-that were done on a sample whose support contains $\E(z,r,s)$, in
-other words, all glbal samples and active samples where $\X_t
-\supset B(z,r)$. Using the combination of these samples we estimate $\hat{\epsilon}(B(z,r))$
-
-
-\section{Quantifying advantage}
 For any $p, \gamma> 0$, let $\X_{p, \gamma}$ consist of all points $x \in \supp(\mu)$ such that:
 \begin{itemize}
 \item either $\eta(B(x,r)) \geq 1/2 + \gamma$ for all $0 \leq r \leq r_p(x)$ 
