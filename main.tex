@@ -40,7 +40,6 @@
 
 \maketitle
 
-
 \section{Setup}
 
 \begin{itemize}
@@ -360,31 +359,39 @@ Thus $L_s(x) \leq L_f(x)$, and there might be a large gap between the two. Befor
 We define the set $F_\ell$ or include all of the points $x \in X$ such that $L_s(x) \leq \ell \leq L_f(x)$. The probability of $F_\ell$ determines the sample complexity of the active learning algorithm
 
 \subsection{A possible characterization of $L_f(x),L_s(x)$}
-First, I find it more intuitive to talk about the probability associated with the ball, rather than the level, which is an exponentially quantized version of the probability. 
 
-I am looking to characterize the behaviour on $x$ when using the true distribution. Suppose this true distribution on $X$ is a uniform density over a ball. In this case there is a 1-to-1 relation between probability and radius and I will use $r(p), p(r)$ to denote the mappings in both directions.
-
-Fix $\gamma>0$ and define the sets 
-$$ A_{\gamma} = \left\{x | \eta(x)\geq \gamma \right\},
- \;\;\;B_{\gamma} = \left\{x | \eta(x)\leq -\gamma \right\}$$
- 
- I use $\B_{p}(x)$ to denote the set of balls with probability at $p$ that contain $x$, similarly $\B_{\leq p}(x)$ is the set of balls that contain $x$ and have probability at most $p$.
- 
- I posit that you can characterize the least obscured $p$ and the largest resolved $p$ as follows:
- \begin{itemize}
-     \item The largest resolved $p$ for $x$ is $p(r'/2)$ where $r'$ is the radius of the largest ball centered at $x$ that is contained in $A_\gamma$ if $\eta(x)>\gamma$ or $B_\gamma$ if $\eta(x)<-\gamma$ 
- \item The smallest obscuring $p$  for $x$ is $p(r'')$ where $r''$ is the largest radius such that for any $s<r''$, $\B_{s}(x)$ contains at least one ball whose polarity is correct.
- \end{itemize}
-
-\section{Analysis for a fixed distribution}
-\newcommand{\P}{{\cal P}}
+\renewcommand{\P}{{\cal P}}
 We are given a distribution over $\P$ over $\X \times \Y$ and a point $x \in X$.
 We sample a set of unlabeled examples $X \subset \X$, and then run our active learning algorithm.
 
-Our goal is to upper bound the number of examples the algorithm needs needs to query before the prediction of the algorithm on $x$ converges to the correct label (and will not change with additional samples).
+Our goal is to upper bound the number of samples $|\X|$ and the number
+of queries the algorithm needs before the prediction of the algorithm
+on $x$ converges to the correct label (and will not change with additional samples).
 
-Given the distribution $\P$ and an edge parameter $\gamma>0$ we partition the balls in $\B$ into three 
-subsets: $\B^+ = $
+As we are dealing with the true distribution, we redifine $\B_\ell(x)$
+to be all balls containing $x$ whose probability is in the range
+$\left[ \frac{1}{2^{\ell-1}}, \frac{1}{2^\ell}\right]$.
+
+Given the distribution $\P$, an edge parameter $\gamma>0$, a
+prediction point $x$ and a level $\ell$ we partition the balls in $\B_{\ell}(x)$ into three 
+subsets:
+$$\B_{\ell}^+ = \{ B \in \B_\ell(x) | \eta(B)  > \gamma\},\;\;
+\B_{\ell}^- = \{ B \in \B_\ell(x) | \eta(B)  < -\gamma\},\;\;
+\B_{\ell}^0 = \{ B \in \B_\ell(x) | -\gamma \leq \eta(B) \leq \gamma\}$$
+
+let the ``correct label'' of x be $s$, i.e. $s = \sign(\eta(x))$.
+We define the ``true'' values of  $L_f(x),L_s(x)$ as follows:
+\begin{itemize}
+\item $L_s(x)$, is the smallest integer $m$ such that for all $\ell\geq
+  m$, $\B_\ell^s \neq \emptyset$ while $\B_\ell^{-s} = \emptyset$.
+\item $L_f(x)$ is the smallest integer $n \leq L_s(x)$ such that for
+  all $n\leq \ell < L_s(x)$, $\B_\ell^s \neq \emptyset$ and $\B_\ell^{-s} \neq \emptyset$.
+\end{itemize}
+
+In other words the level $L_s(x)$ is the minimal level below which the
+prediction is always correct. $L_f(x)$ is the minimal level above $L_s(x)$
+such that the prediction on $x$ for the levels between  $L_f(x)$ and
+$L_s(x)$ is always $!$.
 
 
 \section{Examples}
@@ -397,7 +404,13 @@ subsets: $\B^+ = $
     \end{itemize}
     \item 2D all Euclidean balls
     \begin{itemize}
-        \item Linear separator with $-c, +c$, e.g. uniform distribution over $x$
+        \item Linear separator with $-c, +c$, e.g. uniform distribution over $x$\\
+        I this case $L_s(x)$ is lower bounded the the probability of a
+        ball whose radius is half the distance between $x$ and the
+        linear separator. $L_f(x)$ is close to 0. Two large balls, one
+        shifted towards the positive, the other shifted towards the
+        negative, will suffice to create a disagreement.
+
         \item Separator of bounded curvature on both sides
     \end{itemize}
     \item Dyadic tree: instead of limiting attention to boxes that are cells of the tree, we look at all boxes of all sizes that supported on the underlying gridding of space. We get better bounds for two reasons:
