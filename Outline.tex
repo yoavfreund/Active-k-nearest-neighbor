@@ -1,0 +1,32 @@
+%%% Testing:basic functionality
+\documentclass{article}
+\title{Outline of paper}
+\begin{document}
+\maketitle
+\section{Introduction}
+\section{Setup}
+\section{The algorithm}
+\section{How to sample}
+\section{Examples}
+\begin{itemize}
+    \item 1D
+    \begin{itemize}
+        \item Single threshold with jump in $\eta$ ($-c$ on one side, $+c$ on the other side)
+        \item Single threshold with more general $\eta$, e.g. Tsybakov condition
+        \item Multiple thresholds with $-c, +c$
+    \end{itemize}
+    \item 2D all Euclidean balls
+    \begin{itemize}
+        \item Linear separator with $-c, +c$, e.g. uniform distribution over $x$
+        \item Separator of bounded curvature on both sides
+    \end{itemize}
+    \item Dyadic tree: instead of limiting attention to boxes that are cells of the tree, we look at all boxes of all sizes that supported on the underlying gridding of space. We get better bounds for two reasons:
+    \begin{itemize}
+        \item We look at large boxes, not just leaves of the tree.
+        \item We use all boxes, not just those that are nested like the tree; this makes the boundary apparent earlier using !.
+    \end{itemize}
+    \item Arbitrary dimension, but Holder-smoothness and Tsybakov margin conditions (usual setting in nonparametric estimation). The rates obtainable using passive random sampling were determined by Audibert-Tsybakov. For active, can look at Hanneke. Will find out.
+\end{itemize}
+
+\end{document}
+
