@@ -186,7 +186,7 @@ Points labeled $!$ are ``known unknowns'': they are near the decision boundary a
 \item Update $\yh_{\ell}$ values, $\ell \geq 0$, as per equation (\ref{eq:provisional-label})
 \item $U_0 = \{x \in X: \yh_0(x) = \bot\}$
 \item For all levels $\ell \geq 1$: $U_\ell = \{x \in X: \yh_{\ell-1}(x) = ! \}$
-\yoav{The last run before convergence should contain only disagreements: $!$, not zeros $0$}
+%\yoav{The last run before convergence should contain only disagreements: $!$, not zeros $0$}
 \end{itemize}
 
 \end{itemize}
@@ -392,6 +392,31 @@ In other words the level $L_s(x)$ is the minimal level below which the
 prediction is always correct. $L_f(x)$ is the minimal level above $L_s(x)$
 such that the prediction on $x$ for the levels between  $L_f(x)$ and
 $L_s(x)$ is always $!$.
+
+\subsection{Another definition of two critical levels}
+
+For each point $x \in X$, we define two critical levels $L_0(x)$ and $L_1(x)$. 
+
+Let $s = \mbox{sign}(\eta(x)) \in \{-1, +1\}$. Recall that $\PL_\ell(x) \subseteq \{-1,+1\}$ denotes the ``possible labels'' for $x$ after balls in $\B_\ell(x)$ have been queried.
+
+We will define $L_0(x)$ and $L_1(x)$ so that: $s$ is guaranteed to be in $\PL_\ell(x)$ for all $\ell \geq L_0(x)$ and $-s$ is guaranteed to \emph{not} be in $\PL_\ell(x)$ for all $\ell \geq L_1(x)$. More precisely:
+\begin{itemize}
+\item $L_0(x)$ is the smallest level $\ell$ such that for all $\ell' \geq \ell$,
+\begin{itemize}
+\item there is a ball $B \in \B_{\ell'}(x)$ with $s \cdot \eta_X(B) > b_2$, and
+\item any ball $B' \in \B_{\ell'}(x)$ with $B' \subset B$ has $s \cdot \eta_X(B') > -b_1$.
+\end{itemize}
+\item $L_1(x)$ is the smallest level $\ell$ such that for all $\ell' \geq \ell$, any ball $B \in \B_{\ell'}(x)$ either has $s \cdot \eta_X(B) > -b_1$ or contains some $B' \in \B_{\ell'}(x)$ with $s \cdot \eta_X(B') > b_2$.
+\item \yoav{I would leave the definition of $L_0$ unchanged, but define $L_1$ as follows} $L_1(x)$ is the smallest level $\ell$ such that for all $L_0(x) > \ell' \geq \ell$, 
+there exists two balls $B^+,B^- \in \B_{\ell'}(x)$ such that $\eta_X(B^+) > b_2$ and $\eta_X(B^-) < -b_2$.
+\end{itemize}
+
+Without containment:
+\begin{itemize}
+\item $L_0(x)$ is the smallest level $\ell$ such that for all $\ell' \geq \ell$, there is a ball $B \in \B_{\ell'}(x)$ with $s \cdot \eta_X(B) > b_2$.
+\item $L_1(x)$ is the smallest level $\ell$ such that for all $\ell' \geq \ell$, there is no ball $B \in \B_{\ell'}(x)$ with $s \cdot \eta_X(B) < -b_1$.
+\end{itemize}
+
 
 
 \section{Examples}
