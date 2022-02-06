@@ -23,6 +23,13 @@
 \newcommand\bigsubset[1][1.19]{%
    \mathrel{\vcenter{\hbox{\scalebox{#1}{$\subset$}}}}}
 
+\newcommand{\comment}[3]{{\color{#1} {\bf #2 :} #3}}
+%\newcommand{\comment}[3]{}  % suppress comments
+\newcommand{\sanjoy}[1]{\comment{red}{Sanjoy}{#1}}
+\newcommand{\yoav}[1]{\comment{blue}{Yoav}{#1}}
+
+
+ 
 \DeclareMathOperator*{\argmax}{arg\,max}
 
 \title[Active learning using region-based sampling]{Active learning using region-based sampling}
@@ -93,15 +100,23 @@ The sampling is organized around a collection $\B$ of measurable subsets of $\X$
 \begin{enumerate}
 
 \item[(a)] \emph{Points within a ball.} For any $B \in \B$, let $X_B$ denote the points in $X$ that can be used to assess the bias of $B$. This is simply $X_B = X \cap B$ if $\B$ is a predefined set of balls. But if $\B$ is constructed in a way that depends on $X$ then $X_B$ should exclude points in $X \cap B$ that cannot be considered random samples from $B$.
-
+\yoav{Would it be a significant problem to restrict everything to a
+  pre-defined set of balls? That would keep things simpler.}
+  
 \item[(b)] \emph{Levels of sampling.} We group balls by the number of points that they contain: we put $B$ at {\it level} $\ell$ if
 $$ \frac{n}{2^{\ell + 1}} \leq |X_B| < \frac{n}{2^\ell} .$$
 Here $\ell$ ranges from $0$ (consisting of balls that contain at least half the data points) to roughly $\lg n$ (containing a single point). 
 
 Let $\B_\ell$ consist of all balls in $\B$ that are at level $\ell$. Thus $\B_0, \B_1, \ldots$ is a partition of $\B$, with $\B_0$ consisting of very large balls and $\B_1, \B_2, \ldots$ consisting of successively smaller balls.
 
-\item[(c)] \emph{Balls used to evaluate a given point.} For any $x \in \X$, let $\B(x) \subset \B$ denote the collection of balls that will be used in determining $x$'s label. There are many ways in which this could be set, for instance, (i) all balls containing $x$, or (ii) all balls centered at $x$. As before, we partition these balls by sampling-level, so that $\B_\ell(x) = \B(x) \cap \B_\ell$.
-
+\item[(c)] \emph{Balls used to evaluate a given point.} For any
+  $x \in \X$, let $\B(x) \subset \B$ denote the collection of balls
+  that will be used in determining $x$'s label. There are many ways in
+  which this could be set, for instance, (i) all balls containing $x$,
+  or (ii) all balls centered at $x$. As before, we partition these
+  balls by sampling-level, so that $\B_\ell(x) = \B(x) \cap \B_\ell$.
+  \yoav{Seems to be switching back and forth between using the whole
+    space $\X$ and the set of instances $X$.}
 \end{enumerate}
 
 \subsection{Bias estimates and provisional labels}
@@ -253,13 +268,23 @@ In what follows, take $0 < \delta < 1$ to be a predefined constant, and define
 c_1 = \sqrt{3 \ln \frac{4|\B|}{\delta}} .
 \label{eq:c1}
 \end{equation}
+\yoav{So $\B$ is defined relative to $X$?}
+
 
 For any level $\ell$, define threshold $\tau_\ell$ as follows:
 \begin{equation}
 \tau_\ell = \min \left( \frac{2^{\ell+2}k}{n}, \ 1 \right)
 \label{eq:threshold-ell}
 \end{equation}
-For any $B \in \B_\ell$, define its \emph{query-set} to be $\Gamma(B) = \{z \in X_B: T_z \leq \tau_\ell\}$. We base our bias-estimate for $B$ on the labels of points in $\Gamma(B)$. The following is a consequence of Lemma~\ref{lemma:large-deviation-bounds} in the appendix.
+For any $B \in \B_\ell$, define its \emph{query-set} to be $\Gamma(B)
+= \{z \in X_B: T_z \leq \tau_\ell\}$. We base our bias-estimate for
+$B$ on the labels of points in $\Gamma(B)$. The following is a
+consequence of Lemma~\ref{lemma:large-deviation-bounds} in the
+appendix.
+\yoav{I guess $T_z \leq \tau_\ell$ refers to the poisson sampling
+  trick, which is not discussed. I think that initially we should
+  define an oracle that provides samples with the desired properties,
+  and later we can (in an appendix?) describe how the oracle is implemented.}
 \begin{theorem}
 Suppose that $k \geq (8c_1/(b_2-b_1))^2$ where $c_1$ is given in (\ref{eq:c1}). 
 For each $B \in \B$, let $\widehat{\eta}(B)$ be the average label on the query-set $\Gamma(B)$, and define the bias-estimate $\yh(B)$ as follows:
@@ -352,6 +377,11 @@ Both parts follow from this principle; and we take a union bound over all $\ell_
 \end{proof}
 
 \subsection{Label complexity bounds} 
+
+\yoav{I think this is the main theorem, however, I find it very hard
+  to parse. In particular, I don't see any reference to the fraction
+  of examples that are in the focused group at each level. These
+  fractions have to be small in order for our sampling to be effective.}
 
 \begin{theorem}
 Pick any $0 < \delta < 1$. Suppose that $k \geq (8c_1/(b_2-b_1))^2$, where $c_1$ is defined in (\ref{eq:c1}), and that the active learning algorithm is allowed to make $m$ queries. Let
