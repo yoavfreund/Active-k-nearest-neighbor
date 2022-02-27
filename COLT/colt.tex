@@ -141,10 +141,11 @@ $$
 The option $\bot$ is used until sufficiently many points in $X_B$ have been labeled: the required number, $k$, is roughly $1/\gamma^2$ (recall that $\gamma$ is the smallest bias that needs to be detected). Once $k$ labels are available, $\yh(B)$ is set to a value in $\{-1,0,+1\}$ and remains fixed thereafter. It will satisfy a basic correctness guarantee (Definition~\ref{def:accurate-bias-estimate}) based on large deviation theory. 
 
 \item[(b)] \emph{Possible labels for a point.} Pick any $x$ and any level $\ell$. Once bias-estimates are available for all balls $B \in \B_\ell(x)$, the possible labels for $x$ at level $\ell$, denoted $\PL_\ell(x) \subset \{-1,+1\}$, are defined as follows:
-\begin{gather*}
-+1 \in \PL_\ell(x) \Longleftrightarrow \mbox{there exists $B \in \B_\ell(x)$ with $\yh(B) = +1$} \\
+\begin{gather}
++1 \in \PL_\ell(x) \Longleftrightarrow \mbox{there exists $B \in \B_\ell(x)$ with $\yh(B) = +1$} \notag \\
 -1 \in \PL_\ell(x) \Longleftrightarrow \mbox{there exists $B \in \B_\ell(x)$ with $\yh(B) = -1$}
-\end{gather*}
+\label{eq:PL}
+\end{gather}
 The label of point $x$ at level $\ell$ is a value $\yh_\ell(x) \in \{-1,+1,0,!,\bot\}$. It is initially $\bot$, but once bias-estimates are available for all $B \in \B_\ell(x)$, it is set to a value in $\{-1,+1,0,!\}$ and remains fixed thereafter:
 \begin{equation}
 \yh_\ell(x) = 
@@ -173,19 +174,39 @@ Points labeled $!$ are ``known unknowns'': they are near the decision boundary a
 \item $U_0 = X$
 \item $U_\ell = \emptyset$ for $\ell \geq 1$
 \end{itemize}
+\item Initialize all neighborhoods to ``not yet sampled'':
+\begin{itemize}
+\item For all $B \in \B$: \ $\yh(B) = \bot$
+\end{itemize}
+\item Initialize all point-labels, at all levels, to ``not yet available'':
+\begin{itemize}
+\item For all $x \in X$ and $\ell \geq 0$: \ $\yh_\ell(x) = \bot$
+\end{itemize}
 %
 %\vspace{.1in}
-\item Repeat:
+\item Repeat (main loop):
 \begin{itemize}
 \item If there is a level $\ell \geq 0$ such that $U_\ell \neq \emptyset$:
 \begin{itemize}
-\item Let $\ell'$ be the smallest such level
-\item {\tt Focused-query}($\ell', U_{\ell'}$)
+\item Let $\ell$ be the smallest such level
+\item Set query region:
+$$ S =  \bigcup_{x \in U} \bigcup_{B \in \B_\ell(x)} X_B $$
+\item {\tt Query}($S$) \ (this queries one point from $S$)
 \end{itemize}
-\item {\tt Background-query}
-\item Update $\yh_{\ell}$ values, $\ell \geq 0$, as per equation (\ref{eq:provisional-label})
+\item Background sampling: {\tt Query}($X$)
+\item For any neighborhood $B$ that is now adequately sampled for the first time: 
+\begin{itemize}
+\item Compute bias estimate $\yh(B) \in \{-1,0,+1\}$
+\end{itemize}
+\item For any $\ell \geq 0$ and $x \in X$ for which $\B_\ell(x)$ is available for the first time:
+\begin{itemize}
+\item Set $\PL_\ell(x)$ and $\yh_{\ell}(x)$ as per equations (\ref{eq:PL}) and (\ref{eq:provisional-label})
+\end{itemize}
+\item Update uncertainty region at all levels:
+\begin{itemize}
 \item $U_0 = \{x \in X: \yh_0(x) = \bot\}$
 \item For all levels $\ell \geq 1$: $U_\ell = \{x \in X: \yh_{\ell-1}(x) = \,!, \ \yh_\ell(x) = \bot\}$
+\end{itemize}
 \end{itemize}
 
 \end{itemize}
@@ -208,25 +229,13 @@ Points labeled $!$ are ``known unknowns'': they are near the decision boundary a
 \end{itemize}
 
 \vspace{.2in}
-{\bf Focused-query}($\ell, U$)
-
-\vspace{.1in}
+{\bf Query}($S$):
 \begin{itemize}
-\item Query region:
-$$ S =  \bigcup_{x \in U} \bigcup_{B \in \B_\ell(x)} \{z \in X_B: T_z \leq \tau_\ell\} $$
 \item Query the next unlabeled point in $S \setminus Q$, ordered by $T_z$ values, and add to $Q$
 \end{itemize}
 
-\vspace{.2in}
-{\bf Background-query}
-
-\vspace{.1in}
-\begin{itemize}
-\item Query the next unlabeled point in $X \setminus Q$, ordered by $T_z$ values, and add to $Q$
-\end{itemize}
-
 \end{minipage}}
-\caption{The sampling procedures. Each point $x \in X$ has an associated value $T_x$ chosen uniformly at random from $[0,1]$. This smaller this value, the earlier this point is likely to be queried. The focused querying procedure also uses threshold $\tau_\ell = 2^{\ell+2}k/n$.} 
+\caption{The sampling procedure. Each point $x \in X$ has an associated value $T_x$ chosen uniformly at random from $[0,1]$. This smaller this value, the earlier this point is likely to be queried.} 
 \label{alg:sampling}
 \end{figure}
 
