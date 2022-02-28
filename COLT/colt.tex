@@ -19,6 +19,9 @@
 \def\supp{{\rm supp}}
 \def\sign{{\rm sign}}
 \def\PL{{\mbox{\rm PL}}}
+\newcommand{\predict}{\mathbf{Predict}}
+\newcommand{\learn}{\mathbf{Learn}}
+\newcommand{\D}{{\cal D}}
 
 \newcommand\bigsubset[1][1.19]{%
    \mathrel{\vcenter{\hbox{\scalebox{#1}{$\subset$}}}}}
@@ -28,8 +31,6 @@
 \newcommand{\sanjoy}[1]{\comment{red}{Sanjoy}{#1}}
 \newcommand{\yoav}[1]{\comment{blue}{Yoav}{#1}}
 
-
- 
 \DeclareMathOperator*{\argmax}{arg\,max}
 
 \title[Active learning using region-based sampling]{Active learning using region-based sampling}
@@ -79,17 +80,37 @@ List of keywords
 
 \section{Setup}
 
-Instances lie in a metric space $(\X, d)$, with labels in $\Y = \{-1,+1\}$. The label of $x \in \X$ is drawn according to the conditional probability function
-$$ \eta(x) = \E[Y | X=x] = \pr(Y=1|X=x) - \pr(Y=-1|X=x) = 2 \pr(Y=1|X=x) - 1 .$$
+We assume that examples are drawn from a fixed but unknown
+distribution $\D$ over $\X \times \Y$, where $\X$ is a metric space and
+$\Y = \{-1,+1\}$~\footnote{In a later section we define the notion of
+  neighborhoods more generally to allow, for example, diadic
+  partitions}
+Given $x \in \X$, the label $y \in \Y$ is drawn
+according to the conditional probability function
+$$ \eta(x) = \E[Y | X=x] = \pr(Y=1|X=x) - \pr(Y=-1|X=x).$$
 The \emph{Bayes-optimal classifier} on $\X$ is $g^*(x) = \sign(\eta(x))$.
 
-The task we wish to solve is \emph{finite population annotation}: assigning labels to a finite dataset $X \subset \X$ of $n$ points. We are given the ability to query the label of any point $x \in X$, which will be drawn according to $\eta(x)$. We are also given parameters $0 < \gamma, \delta < 1$.
+The task we wish to solve is \emph{finite population annotation}. We
+are given a finite dataset $X \subset \X$ of $n$ points.
+We are given the ability to query the label of any point $x \in X$. The
+answer to the query: $a(x) \in \{-1,+1\}$ is a binary random variable
+drawn according to $\eta(x)$. In particular, multiple queries on the
+same point can recieve different answers.
+
+Our goal is to design an active learning algorithm that converges to the Bayes
+optimal $g^*(x)$ and does so with a much smaller number of queries
+than a passive algorithm.  
+
+
+
+
 
 We want a procedure that chooses the next point to query. It will be applied repeatedly and then stopped at an arbitrary time, whereupon labels $y(x)$ must be provided for all $x \in X$, including those that were queried. We would like the inferred labels $y(x)$ to approach the Bayes-optimal labels $g^*(x)$ as quickly as possible, ideally much faster than would occur if the query points were chosen uniformly at random.
 
 Specifically, we will be judged on the number of errors on points $x \in X$ with $|\eta(x)| > \gamma$:
 $$ \sum_{x \in X} {\bf 1}(y(x) \neq g^*(x),\, |\eta(x)| > \gamma) .$$
 The procedure is allowed to fail with probability $\delta$, to account for sampling error.
+
 
 \section{Active learning algorithm}
 
@@ -99,9 +120,7 @@ The sampling is organized around a collection $\B$ of measurable subsets of $\X$
 
 \begin{enumerate}
 
-\item[(a)] \emph{Points within a ball.} For any $B \in \B$, let $X_B$ denote the points in $X$ that can be used to assess the bias of $B$. This is simply $X_B = X \cap B$ if $\B$ is a predefined set of balls. But if $\B$ is constructed in a way that depends on $X$ then $X_B$ should exclude points in $X \cap B$ that cannot be considered random samples from $B$.
-\yoav{Would it be a significant problem to restrict everything to a
-  pre-defined set of balls? That would keep things simpler.}
+\item[(a)] \emph{Points within a ball.} For any $B \in \B$, let $X_B$ denote the points in $X$ that can be used to assess the bias of $B$. This is simply $X_B = X \cap B$ if $\B$ is a predefined set of balls. 
   
 \item[(b)] \emph{Levels of sampling.} We group balls by the number of points that they contain: we put $B$ at {\it level} $\ell$ if
 $$ \frac{n}{2^{\ell + 1}} \leq |X_B| < \frac{n}{2^\ell} .$$
@@ -111,12 +130,18 @@ Let $\B_\ell$ consist of all balls in $\B$ that are at level $\ell$. Thus $\B_0,
 
 \item[(c)] \emph{Balls used to evaluate a given point.} For any
   $x \in \X$, let $\B(x) \subset \B$ denote the collection of balls
-  that will be used in determining $x$'s label. There are many ways in
-  which this could be set, for instance, (i) all balls containing $x$,
-  or (ii) all balls centered at $x$. As before, we partition these
-  balls by sampling-level, so that $\B_\ell(x) = \B(x) \cap \B_\ell$.
-  \yoav{Seems to be switching back and forth between using the whole
-    space $\X$ and the set of instances $X$.}
+  that will be used in determining $x$'s label. Similarly $\B_\ell(x)
+  \subset \B_\ell$ is the collection of balls from level $\ell$ that
+  contain $x$.
+
+  
+  % There are many ways in
+  % which this could be set, for instance, (i) all balls containing $x$,
+  % or (ii) all balls centered at $x$. As before, we partition these
+  % balls by sampling-level, so that $\B_\ell(x) = \B(x) \cap \B_\ell$.
+  % \yoav{Seems to be switching back and forth between using the whole
+  %   space $\X$ and the set of instances $X$.}
+  
 \end{enumerate}
 
 \subsection{Bias estimates and provisional labels}
@@ -140,9 +165,11 @@ $$ \yh(B) =
 $$
 The option $\bot$ is used until sufficiently many points in $X_B$ have been labeled: the required number, $k$, is roughly $1/\gamma^2$ (recall that $\gamma$ is the smallest bias that needs to be detected). Once $k$ labels are available, $\yh(B)$ is set to a value in $\{-1,0,+1\}$ and remains fixed thereafter. It will satisfy a basic correctness guarantee (Definition~\ref{def:accurate-bias-estimate}) based on large deviation theory. 
 
-\item[(b)] \emph{Possible labels for a point.} Pick any $x$ and any level $\ell$. Once bias-estimates are available for all balls $B \in \B_\ell(x)$, the possible labels for $x$ at level $\ell$, denoted $\PL_\ell(x) \subset \{-1,+1\}$, are defined as follows:
+\item[(b)] \emph{Possible labels for a point.} Pick any $x$ and any level $\ell$. Once bias-estimates are available for all balls $B \in \B_\ell(x)$, the possible labels for $x$ at level $\ell$, denoted $\PL_\ell(x) \subset \{-1,0,+1\}$, are defined as follows:
 \begin{gather}
-+1 \in \PL_\ell(x) \Longleftrightarrow \mbox{there exists $B \in \B_\ell(x)$ with $\yh(B) = +1$} \notag \\
++1 \in \PL_\ell(x) \Longleftrightarrow \mbox{there exists $B \in
+  \B_\ell(x)$ with $\yh(B) = +1$} \notag \\
+0 \in \PL_\ell(x) \Longleftrightarrow \mbox{there exists $B \in \B_\ell(x)$ with $\yh(B) = 0$} \notag \\
 -1 \in \PL_\ell(x) \Longleftrightarrow \mbox{there exists $B \in \B_\ell(x)$ with $\yh(B) = -1$}
 \label{eq:PL}
 \end{gather}
@@ -150,11 +177,12 @@ The label of point $x$ at level $\ell$ is a value $\yh_\ell(x) \in \{-1,+1,0,!,\
 \begin{equation}
 \yh_\ell(x) = 
 \left\{
-\begin{array}{cl}
-+1 & \mbox{if $\PL_\ell(x) = \{+1\}$} \\
--1 &  \mbox{if $\PL_\ell(x) = \{-1\}$} \\
-0 & \mbox{if $\PL_\ell(x) = \{\}$} \\
-! & \mbox{if $\PL_\ell(x) = \{-1,+1\}$}
+  \begin{array}{cl}
++1   & \mbox{if $+1 \in \PL_\ell(x)$ and $-1 \notin PL_\ell(x)$} \\
+-1   & \mbox{if $+1 \notin \PL_\ell(x)$ and $-1 \in PL_\ell(x)$} \\
+!    & \mbox{if $+1 \in \PL_\ell(x)$ and $-1 \in PL_\ell(x)$} \\
+0    & \mbox{if $\PL_\ell(x)=\{0\}$} \\
+\bot & \mbox{if $\PL_\ell(x)=\emptyset$}
 \end{array}
 \right.
 \label{eq:provisional-label}
@@ -165,6 +193,37 @@ Points labeled $!$ are ``known unknowns'': they are near the decision boundary a
 
 \subsection{The algorithm}
 
+\begin{figure}[h!]
+\framebox{
+\begin{minipage}[t]{5.9in}
+  $\predict(x)$\\
+  \begin{itemize}
+    \item Let $\ell(x)$ be the maximal level $\ell$ such that $\yh_\ell(x) \in
+      \{-1,0,+1\}$ or $\infty$ of no such level exists
+    \item If $\ell(x) < \infty$ then return $\yh_{\ell(x)}(x)$
+    \item if $\ell(x) = \infty$, return !
+    \end{itemize}
+    \vspace{1cm}
+    $\learn(n)$  learn from $2n$ queries\\
+
+    \begin{itemize}
+    \item For each $x \in X$
+      \begin{itemize}
+      \item Let $\ell(x)$ be the maximal level $\ell$ such that
+        $\yh_\ell(x) \in \{-1,0,+1,!\}$ or $\infty$ if no such level
+        exists
+      \item if $\yh_\ell(x) = !$ the add $\bigcup \B_{l+1}(x)$ to $S$
+      \end{itemize}
+      \item query $S$ $2n$ times. \yoav{I realize that there might be some
+        gain from updating $S$ after each query.}
+\end{itemize}
+\end{minipage}}
+\caption{The active learning algorithm. In each iteration, (at most) one focused query and one background query are made.}
+\label{alg:main}
+\end{figure}
+
+
+\iffalse
 \begin{figure}[h!]
 \framebox{
 \begin{minipage}[t]{5.9in}
@@ -215,6 +274,7 @@ $$ S =  \bigcup_{x \in U} \bigcup_{B \in \B_\ell(x)} X_B $$
 \caption{The active learning algorithm. In each iteration, (at most) one focused query and one background query are made.}
 \label{alg:main}
 \end{figure}
+\fi
 
 
 \begin{figure}[h!]
@@ -252,6 +312,9 @@ The algorithm of Figure~\ref{alg:main} can be run for any amount of time. Whenev
 \label{eq:final-label}
 \end{equation}
 
+\yoav{I don't think there is anything special about a point that has
+  been queried, a single query is not enough, we need $k$ queries to
+  determine the prediction.}
 
 \section{Analysis of algorithm}
 
