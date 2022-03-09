@@ -196,34 +196,32 @@ Points labeled $!$ are ``known unknowns'': they are near the decision boundary a
 \begin{figure}[h!]
 \framebox{
 \begin{minipage}[t]{5.9in}
-  $\predict(x)$\\
+\begin{itemize}
+    \item   $\predict(x)$\\
   \begin{itemize}
     \item Let $\ell(x)$ be the maximal level $\ell$ such that $\yh_\ell(x) \in
       \{-1,0,+1\}$ or $\infty$ of no such level exists
     \item If $\ell(x) < \infty$ then return $\yh_{\ell(x)}(x)$
     \item if $\ell(x) = \infty$, return !
     \end{itemize}
-    \vspace{1cm}
-    $\learn(n)$  learn from $2n$ queries\\
-
+    \item
+    $\learn(\ell)$  query to complete level $\ell$\\
+    Repeat until no conflict
     \begin{itemize}
-    \item For each $x \in X$
-      \begin{itemize}
-      \item Let $\ell(x)$ be the maximal level $\ell$ such that
-        $\yh_\ell(x) \in \{-1,0,+1,!\}$ or $\infty$ if no such level
-        exists
-      \item if $\yh_\ell(x) = !$ the add $\bigcup \B_{l+1}(x)$ to $S$
-      \end{itemize}
-      \item query $S$ $2n$ times. \yoav{I realize that there might be some
-        gain from updating $S$ after each query.}
-\end{itemize}
+        \item Set the query region for level $\ell$.
+        \item Sample query region until all balls have $k$ queries. Let the number of queries be $m$
+        \item Sample $m$ points from the uniform distribution
+        \item Fillin if needed
+    \end{itemize}
+    \item
+    {\bf Fill-in}: When a known-unknown is detected at a level lower than $\ell$: we need to fill in the conflicted balls up to level $\ell$.
+    \end{itemize}
 \end{minipage}}
 \caption{The active learning algorithm. In each iteration, (at most) one focused query and one background query are made.}
 \label{alg:main}
 \end{figure}
 
 
-\iffalse
 \begin{figure}[h!]
 \framebox{
 \begin{minipage}[t]{5.9in}
@@ -249,7 +247,7 @@ Points labeled $!$ are ``known unknowns'': they are near the decision boundary a
 \begin{itemize}
 \item Let $\ell$ be the smallest such level
 \item Set query region:
-$$ S =  \bigcup_{x \in U} \bigcup_{B \in \B_\ell(x)} X_B $$
+$$ S =  \bigcup_{x \in U_\ell} \bigcup_{B \in \B_\ell(x)} X_B $$
 \item {\tt Query}($S$) \ (this queries one point from $S$)
 \end{itemize}
 \item Background sampling: {\tt Query}($X$)
@@ -274,7 +272,7 @@ $$ S =  \bigcup_{x \in U} \bigcup_{B \in \B_\ell(x)} X_B $$
 \caption{The active learning algorithm. In each iteration, (at most) one focused query and one background query are made.}
 \label{alg:main}
 \end{figure}
-\fi
+
 
 
 \begin{figure}[h!]
@@ -289,9 +287,9 @@ $$ S =  \bigcup_{x \in U} \bigcup_{B \in \B_\ell(x)} X_B $$
 \end{itemize}
 
 \vspace{.2in}
-{\bf Query}($S$):
+{\bf Query}($S, \ell$):
 \begin{itemize}
-\item Query the next unlabeled point in $S \setminus Q$, ordered by $T_z$ values, and add to $Q$
+\item Query all points in $S \setminus Q$ with $T_z \leq 2^\ell k/n$, and add to $Q$
 \end{itemize}
 
 \end{minipage}}
