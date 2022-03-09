@@ -128,19 +128,12 @@ Here $\ell$ ranges from $0$ (consisting of balls that contain at least half the 
 
 Let $\B_\ell$ consist of all balls in $\B$ that are at level $\ell$. Thus $\B_0, \B_1, \ldots$ is a partition of $\B$, with $\B_0$ consisting of very large balls and $\B_1, \B_2, \ldots$ consisting of successively smaller balls.
 
-\item[(c)] \emph{Balls used to evaluate a given point.} For any
-  $x \in \X$, let $\B(x) \subset \B$ denote the collection of balls
-  that will be used in determining $x$'s label. Similarly $\B_\ell(x)
-  \subset \B_\ell$ is the collection of balls from level $\ell$ that
+\item[(c)] \emph{The neighborhood of a point.} For any
+  $x \in \X$, and level $\ell$.
+  $N(\ell,x)$ is the collection of balls from $\B_\ell$ that
   contain $x$.
-
-  
-  % There are many ways in
-  % which this could be set, for instance, (i) all balls containing $x$,
-  % or (ii) all balls centered at $x$. As before, we partition these
-  % balls by sampling-level, so that $\B_\ell(x) = \B(x) \cap \B_\ell$.
-  % \yoav{Seems to be switching back and forth between using the whole
-  %   space $\X$ and the set of instances $X$.}
+\item[(d)] We say that the neighborhood $N(x,\ell)$ is {\em covered}
+  if there are $k$ query points in each $B \in N(x,\ell)$.
   
 \end{enumerate}
 
@@ -187,7 +180,8 @@ The label of point $x$ at level $\ell$ is a value $\yh_\ell(x) \in \{-1,+1,0,!,\
 \right.
 \label{eq:provisional-label}
 \end{equation}
-Points labeled $!$ are ``known unknowns'': they are near the decision boundary and need further investigation. Points labeled $0$ show no significant bias.
+A point $x$ for which $\yh_\ell(x)=!$ is said to have a ``conflict at
+level $\ell$''.
 
 \end{enumerate}
 
@@ -197,25 +191,23 @@ Points labeled $!$ are ``known unknowns'': they are near the decision boundary a
 \framebox{
 \begin{minipage}[t]{5.9in}
 \begin{itemize}
-    \item   $\predict(x)$\\
+\item{\bf Initialize:} set $\ell=0$, cover all of the balls in $\B_0$.
+\item   $\predict(x)$
   \begin{itemize}
-    \item Let $\ell(x)$ be the maximal level $\ell$ such that $\yh_\ell(x) \in
-      \{-1,0,+1\}$ or $\infty$ of no such level exists
-    \item If $\ell(x) < \infty$ then return $\yh_{\ell(x)}(x)$
-    \item if $\ell(x) = \infty$, return !
-    \end{itemize}
-    \item
-    $\learn(\ell)$  query to complete level $\ell$\\
-    Repeat until no conflict
-    \begin{itemize}
-        \item Set the query region for level $\ell$.
-        \item Sample query region until all balls have $k$ queries. Let the number of queries be $m$
-        \item Sample $m$ points from the uniform distribution
-        \item Fillin if needed
-    \end{itemize}
-    \item
-    {\bf Fill-in}: When a known-unknown is detected at a level lower than $\ell$: we need to fill in the conflicted balls up to level $\ell$.
-    \end{itemize}
+  \item Predict with $\yh_\ell(x)$
+  \end{itemize}
+  \item
+  $\learn$  Increment sampling level\\
+  Repeat while there is an $x$ that has a conflict at level $0\leq i
+  \leq \ell$ and $N(x,i+1)$ is uncovered. 
+  \begin{itemize}
+  \item Cover $N(x,i+1)$ using $m$ queries
+  \item Query $m$ points uniformly from the domain (background
+    sampling)
+  \item Update $\yh_{i+1}(y)$ For all $y$.
+  \end{itemize}
+  Let $\ell+1 \to \ell$
+\end{itemize}
 \end{minipage}}
 \caption{The active learning algorithm. In each iteration, (at most) one focused query and one background query are made.}
 \label{alg:main}
