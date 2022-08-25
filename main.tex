@@ -55,7 +55,12 @@ $$ \eta(x) = \E[Y | X=x] = \pr(Y=1|X=x) - \pr(Y=-1|X=x) = 2 \pr(Y=1|X=x) - 1 .$$
 \item {\it Task: Finite population labeling.}
 
 \begin{itemize}
-\item We are given a finite dataset of $n$ points, and have the ability to query the labels of any of them. The response to the query $x$ +1 or -1, chosen according the conditional probability function $\eta(x)$. When two or more queries are made on the instance $x$, the responses need not be the same, in other words, the labels are not persistant. 
+\item We are given a finite dataset of $n$ points, and have the
+  ability to query the labels of any of them. The response to the
+  query $x$ is +1 or -1, chosen according the conditional probability
+  function $\eta(x)$. When two or more queries are made on the
+  instance $x$, the responses are chosen independently at random
+  according to $\eta(x)$, in other words, the labels are not persistant. 
 
 \item We are given parameters $0 < \gamma, \delta < 1$.
 \item We want a procedure that chooses the next point, or batch of points, to query. This process will be applied repeatedly and forever. At any point the procedure can be asked to make a prediction on any point in $X$. The prediction is $\yh(x) \in \{-1,0,+1\}$. We consider the prediction correct if $\yh(x)=+1$ and $\eta(x)=+1$, if $\yh(x)=-1$ and $\eta(x)=-1$ or $\yh(x)=0$ and $|\eta(x)| < \gamma$. 
@@ -164,9 +169,60 @@ Points labeled $!$ are ``known unknowns'': they are near the decision boundary a
 \end{enumerate}
 
 
-\begin{figure}[h!]
+\begin{figure}[ht!]
 \framebox{
 \begin{minipage}[t]{6.4in}
+\vspace{.1in}
+\emph{Variables:}
+\begin{itemize}
+\item $Q$ (queries made so far)
+\end{itemize}
+
+\vspace{.1in}
+\emph{Initialization:}
+\begin{itemize}
+\item Set $Q := \emptyset$ (points queried so far)
+\item For each $x \in X$: choose $T_x \sim \mbox{unif}[0,1]$
+\end{itemize}
+
+\vspace{.2in}
+{\bf Focused-query}($\ell, U$)
+
+\vspace{.1in}
+\begin{itemize}
+\item Query region:
+$$ S =  \bigcup_{x \in U} \bigcup_{B \in \B_\ell(x)} \{z \in X_B: T_z \leq \tau_\ell\} $$
+\item Query the next unlabeled point in $S \setminus Q$, ordered by $T_z$ values, and add to $Q$
+\end{itemize}
+
+\vspace{.2in}
+{\bf Background-query}
+
+\vspace{.1in}
+\begin{itemize}
+\item Query the next unlabeled point in $X \setminus Q$, ordered by $T_z$ values, and add to $Q$
+\end{itemize}
+\yoav{I am not sure whether the set from which to pick the query
+  should exclude $Q$: the queries that have been made o far. if a set
+  consists of one point and that point has a weak bias, we need to
+  sample the point several times.}
+\end{minipage}}
+\caption{The sampling procedures. Each point $x \in X$ has an associated value $T_x$ chosen uniformly at random from $[0,1]$. This smaller this value, the earlier this point is likely to be queried. The focused querying procedure also uses threshold $\tau_\ell = 2^{\ell+2}k/n$.} 
+\label{alg:sampling}
+\end{figure}
+
+
+\begin{figure}[ht!]
+\framebox{
+  \begin{minipage}[t]{6.4in}
+    \vspace{.1in}
+\emph{Variables:}
+\begin{itemize}
+\item $U_\ell$ The set of points level $\ell$ that are ``known unknowns''
+\end{itemize}
+
+\vspace{.2in}
+{\bf Active Balls}
 \begin{itemize}
 \item Initialize uncertainty regions at all levels:
 \begin{itemize}
@@ -197,39 +253,6 @@ Points labeled $!$ are ``known unknowns'': they are near the decision boundary a
 \end{figure}
 
 
-\begin{figure}[h!]
-\framebox{
-\begin{minipage}[t]{6.4in}
-
-\vspace{.1in}
-\emph{Initialization:}
-\begin{itemize}
-\item Set $Q = \emptyset$ (points queried so far)
-\item For each $x \in X$: choose $T_x \sim \mbox{unif}[0,1]$
-\end{itemize}
-
-\vspace{.2in}
-{\bf Focused-query}($\ell, U$)
-
-\vspace{.1in}
-\begin{itemize}
-\item Query region:
-$$ S =  \bigcup_{x \in U} \bigcup_{B \in \B_\ell(x)} \{z \in X_B: T_z \leq \tau_\ell\} $$
-\item Query the next unlabeled point in $S \setminus Q$, ordered by $T_z$ values, and add to $Q$
-\end{itemize}
-
-\vspace{.2in}
-{\bf Background-query}
-
-\vspace{.1in}
-\begin{itemize}
-\item Query the next unlabeled point in $X \setminus Q$, ordered by $T_z$ values, and add to $Q$
-\end{itemize}
-
-\end{minipage}}
-\caption{The sampling procedures. Each point $x \in X$ has an associated value $T_x$ chosen uniformly at random from $[0,1]$. This smaller this value, the earlier this point is likely to be queried. The focused querying procedure also uses threshold $\tau_\ell = 2^{\ell+2}k/n$.} 
-\label{alg:sampling}
-\end{figure}
 
 
 \section{Analysis of algorithm}
@@ -268,7 +291,6 @@ For any $B \in \B_\ell$, define its \emph{query-set} to be $\Gamma(B) = \{z \in 
 
 Our main deviation bound is the following, a consequence of Lemma~\ref{lemma:large-deviation-discrete} in the appendix.
 
-\yoav{Looks suspicious: $|X_B| \geq k$ implies that the query set $\Gamma(B)$ has size at least $k$. The size of the query set should depend on the bias, not on the size of $X_B$}
 \begin{thm}
 Suppose $k \geq 2c_1^2$. With probability at least $1-\delta$, the following is true for all $B \in \B$ with $|X_B| \geq k$:
 \begin{enumerate}
@@ -315,7 +337,7 @@ In what follows, we will assume that this $(1-\delta)$-probability event holds.
 
 As the level $\ell$ is increased, the label assigned to a data point $x$, which we denote $\yh_{\ell}(x)$, might also change; it may flip between $+1$ and $-1$ a few times, with stretches of $0$ or $!$ in between.
 
-\yoav{There seems to be a  gap: $\yh_\ell(x)$ is a random variable, but $L_f(x),L_s(x)$ are not.}
+%\yoav{There seems to be a  gap: $\yh_\ell(x)$ is a random variable, but $L_f(x),L_s(x)$ are not.}
 
 We distinguish two critical levels for each $x$: the level $L_s(x)$ beyond which this label no longer flips between $+1$ and $-1$ (although it may be $0$ or $!$), and the level $L_f(x)$ beyond which the label will be correct. See Figure~\ref{fig:two-levels} for a pictorial view.
 
@@ -329,7 +351,6 @@ We distinguish two critical levels for each $x$: the level $L_s(x)$ beyond which
 
 We begin with $L_s$.
 
-\yoav{Shouldn't this be $|\eta(x)| > c$?} 
 \begin{defn}
 Pick any $x \in X$ with $\eta(x) \neq 0$ and let $s = \sign(\eta(x))$ be its Bayes-optimal label. We say $x$ is \emph{obscured} at level $\ell \geq 0$ if the following two conditions hold.
 \begin{itemize}
@@ -394,6 +415,7 @@ such that the prediction on $x$ for the levels between  $L_f(x)$ and
 $L_s(x)$ is always $!$.
 
 \subsection{Another definition of two critical levels}
+\yoav{I prefer to work with this definition}
 
 For each point $x \in X$, we define two critical levels $L_0(x)$ and $L_1(x)$. 
 
@@ -418,7 +440,33 @@ Without containment:
 \end{itemize}
 
 
+\section{Characterizing $S_L,S_F$  for Euclidean balls}
+Suppose the input
+distribution is uniform on a ball $B$ of radius one  around the
+origin. Denote the ``positive'' set to be $C$. Let $\gamma>0$ be the
+edge such that
+\[
+  P(y=1|X=x) =\begin{cases}
+    1/2+\gamma & \mbox{ if } x \in C \\
+    1/2-\gamma & \mbox{ if } x \notin C
+    \end{cases}
+  \]
 
+  $L_f(x)$ corresponds to half the distance between $x$ and the boundary
+
+  $L_s(x)$ can be bounded independently of $x$ if $r$ is the largest
+  radius such that both $C$ and $C^c$ can be expressed as a union of
+  balls of radius $r$.
+
+  We can define a bondary of bounded convexity in this way.
+
+
+ For other definitions of ``ball'' we can use a similar
+ characterization: $L_s(x)$ corresponds to the smallest ball
+ containing both $x$ and a point with the opposite label. $L_f(x)$
+ corresponds to the largest radius such that both $C$ and $C^c$ can be
+ written as a union of balls.
+  
 \section{Examples}
 \begin{itemize}
     \item 1D
