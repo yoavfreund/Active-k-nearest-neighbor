@@ -15,7 +15,9 @@
 \def\yh{{\widehat{y}}}
 \def\bias{{\rm bias}}
 \def\supp{{\rm supp}}
+\def\dist{{\rm dist}}
 \def\sign{{\rm sign}}
+\def\vol{{\rm vol}}
 \def\PL{{\mbox{\rm PL}}}
 
 \newtheorem{thm}{Theorem}
@@ -27,6 +29,9 @@
 \newtheorem{open}{Open problem}
 \newenvironment{proof}{\noindent {\sc Proof:}}{$\Box$ \medskip}
 
+\newcommand{\yoav}[1]{\comment{cyan}{Yoav}{#1}}
+\newcommand{\sanjoy}[1]{\comment{blue}{Sanjoy}{#1}}
+
 \DeclareMathOperator*{\argmax}{arg\,max}
 
 \title{Active learning using region-based sampling}
@@ -37,67 +42,46 @@
 
 \section{Setup}
 
-\begin{itemize}
-\item {\it Underlying model of data.}
+In our model, all instances lie in a metric space $(\X, d)$. Each $x \in \X$ has an associated label $y \in \Y = \{-1,+1\}$, drawn according to an unknown conditional probability function given by
+$$ \eta(x) = \E[y | x] = \pr(y=1|x) - \pr(y=-1|x) = 2 \pr(y=1|x) - 1 .$$
+The \emph{Bayes-optimal} label for $x$ is then 
+$$ g^*(x) = \left\{
+\begin{array}{cl}
+-1 & \mbox{if $\eta(x) < 0$} \\
++1 & \mbox{if $\eta(x) > 0$} \\
+\mbox{either} & \mbox{if $\eta(x)= 0$}
+\end{array} \right.
+$$
 
-\begin{itemize}
-\item Instances lie in a metric space $(\X, d)$. 
-\item Label space $\Y = \{-1,+1\}$. Each $x \in \X$ is labeled according to an unknown conditional probability function $\Pr(Y|X)$, with
-$$ \eta(x) = \E[Y | X=x] = \pr(Y=1|X=x) - \pr(Y=-1|X=x) = 2 \pr(Y=1|X=x) - 1 .$$
-\item The {\it Bayes-optimal classifier} on $\X$ is $g^*(x) = \sign(\eta(x))$.
-\end{itemize}
+At the outset, we are given a finite dataset $X \subset \X$ of $n$ points, and we have the ability to query the labels of any of them. We are also given parameters $0 < \gamma, \delta < 1$. We want a procedure that chooses the next point, or batch of points, to query. This process will be applied repeatedly and then stopped at an arbitrary time, whereupon labels $\yh(x)$ must be provided for all $x \in X$, including those that were queried. Ideally, these will equal the Bayes-optimal labels $g^*(x)$, but we will only be judged on points $x \in X$ with $|\eta(x)| \geq \gamma$. That is, the number of mistakes is taken to be:
+$$ \sum_{x \in X} {\bf 1}(\yh(x) \neq g^*(x),\ |\eta(x)| \geq \gamma) .$$
+The overall procedure is allowed to fail with probability $\delta$, to account for sampling error.
 
-\item {\it Task: Finite population labeling.}
+In some applications, a point $x$ can be queried repeatedly, with each resulting label being an independent draw according to $\eta(x)$. If this is the case, it is enough to query each point $O(1/\gamma^2)$ times and take the majority label, giving a total label complexity of $O(n/\gamma^2)$. For maximum generality, we do not assume that \emph{repeat querying} is allowed and thus we query each point at most once. If repeat queries are permissible, $O(1/\gamma^2)$ copies should be made of each point in $X$ before our method is applied.
 
-\begin{itemize}
-\item We are given a finite dataset $X \subset \X$ of $n$ points, and have the ability to query the labels of any of them. We are also given parameters $0 < \gamma, \delta < 1$.
-\item We want a procedure that chooses the next point, or batch of points, to query. This process will be applied repeatedly and then stopped at an arbitrary time, whereupon labels $\yh(x)$ must be provided for all $x \in X$ (including those that were queried).
-\item We would like the inferred labels $\yh(x)$ to approach the Bayes-optimal labels $g^*(x)$ as quickly as possible, ideally much faster than would occur if the query points were chosen uniformly at random.
-\item Specifically, we will then be judged on the number of errors on points $x \in X$ with $|\eta(x)| > \gamma$:
-$$ \sum_{x \in X} {\bf 1}(\yh(x) \neq g^*(x),\ |\eta(x)| > \gamma) .$$
-The procedure is allowed to fail with probability $\delta$, to account for sampling error.
-\end{itemize}
+\section{The active learning algorithm}
 
-\end{itemize}
+\subsection{A collection of sampling regions}
 
-\section{Active learning algorithm}
+In the active learning algorithm, sampling is organized around a collection $\B$ of subsets of $\X$. These are the atomic sets on which we assess label bias and we call them ``balls''.
 
-\subsection{Some details}
+For any ball $B \in \B$, let $X_B = X \cap B$ be a shorthand for the data points that lie in it.\footnote{Since we use $X_B$ to assess the label bias of $B$, we will need to exclude points that cannot be considered random samples from $B$. For instance, consider these two alternatives: (1) $\B$ consists of a pre-defined set of balls. (2) $\B$ consists of balls defined by pairs of points in $X$, with each $x,x' \in X$ yielding the ball $B(x,\|x-x'\|)$. In the first case, all points $X \cap B$ are random draws from $B$. In the second case, we would need to exclude the two points $x,x'$ that define the ball.} 
+We put $B$ at {\it level} $\ell \geq 0$ if
+\begin{equation}
+\frac{n}{2^{\ell + 1}} \leq |X_B| < \frac{n}{2^\ell} .
+\label{eq:sampling-level}
+\end{equation}
+Let $\B_\ell$ consist of all balls in $\B$ that are at level $\ell$. Thus $\B_0, \B_1, \ldots$ is a partition of $\B$, with $\B_0$ consisting of very large balls and subsequent $\B_1, \B_2, \ldots$ consisting of successively smaller balls. We will use $\B_{\geq \ell}$ to denote all balls at levels $\ell$ or greater, and likewise $\B_{> \ell}$, $\B_{\leq \ell}$, and so on.
 
-\begin{enumerate}
+For any $x \in \X$, let $\B(x) \subset \B$ denote the collection of balls that contain $x$ and can thus be used in determining $x$'s label. As before, we partition these balls by sampling-level, so that $\B_\ell(x) = \B(x) \cap \B_\ell$.
 
-\item {\it Sampling regions.}
-The sampling is organized around a collection $\B$ of measurable subsets of $\X$. These are the atomic sets on which we assess label bias and we call them ``balls''.
+\subsection{Estimating bias}
 
-\begin{enumerate}
+We use label-queries to get qualitative estimates of the biases of balls $B \in \B$. These are in turn used to estimate the labels of individual points.
 
-\item[(a)] {\it Points within a ball.} For any ball $B \in \B$, let $X_B = X \cap B$ denote the points in $X$ that will be used to assess the bias of $B$.\footnote{Sometimes, $\B$ might be constructed in a way that depends on $X$ and causes certain points to be excluded. For instance, consider these two alternatives for defining $\B$:
-\begin{itemize}
-\item $\B$ consists of a pre-defined set of balls.
-\item $\B$ consists of balls defined by pairs of points in $X$, with each $x,x' \in X$ yielding the ball $B(x,\|x-x'\|)$.
-\end{itemize}
-In the first case, all points $X \cap B$ are random draws from $B$. In the second case, this is also true except for the two points $x,x'$ that define the ball.}
-
-\item[(b)] {\it Grouping balls by size.} We will group balls by the number of points that they contain: we put $B$ at {\it level} $\ell$ if
-$$ \frac{n}{2^{\ell + 1}} \leq |X_B| < \frac{n}{2^\ell} .$$
-Here $\ell$ ranges from $0$ (consisting of balls that contain at least half the data points) to roughly $\lg n$ (containing a single point). 
-
-Let $\B_\ell$ consist of all balls in $\B$ that are at level $\ell$. Thus $\B_0, \B_1, \ldots$ is a partition of $\B$, with $\B_0$ consisting of very large balls and subsequent $\B_1, \B_2, \ldots$ consisting of successively smaller balls.
-
-\item[(c)] {\it Balls used to evaluate a given point.}
-
-For any $x \in \X$, let $\B(x) \subset \B$ denote the collection of balls that will be used in determining $x$'s label. We will take these to be all balls that contain $x$. As before, we can partition these balls by sampling-level, so that $\B_\ell(x) = \B(x) \cap \B_\ell$.
-
-\end{enumerate}
-
-\item {\it Bias-estimates for balls and for data points.} The active learning algorithm uses label-queries to assess the bias of balls $B \in \B$. In turn, these are used to estimate the labels of individual points.
-
-\begin{enumerate}
-
-\item[(a)] {\it Bias of a ball.} The bias of a ball $B \in \B$ is defined as
+The bias of a ball $B \in \B$ is defined as
 $$ \eta_X(B) = \mbox{average}\{\eta(x): x \in X_B \} .$$
-
-\item[(b)] {\it Qualitative estimates of bias.} Each ball $B$ is assigned qualitative bias estimate,
+Rather than working with a precise numerical estimate, we assign each ball a \emph{qualitative} bias estimate,
 $$ \yh(B) = 
 \left\{
 \begin{array}{cl}
@@ -108,59 +92,27 @@ $$ \yh(B) =
 \end{array}
 \right.
 $$
-The option $\bot$ is used until sufficiently many points in $X_B$ have been labeled: the required number, $k$, is roughly $1/\gamma^2$ (recall that $\gamma$ is the smallest bias that needs to be detected). Once this many labels are available, $\yh(B)$ is set to a value in $\{-1,0,+1\}$ and remains fixed thereafter.
-
-\item[(c)] {\it Bias guarantees.} Our bias estimates will satisfy a guarantee of the following form: with probability $1-\delta$, for all $B \in \B$, once $\yh(B)$ is set to a value in $\{-1,0,+1\}$, 
+The option $\bot$ is used until sufficiently many points in $X_B$ have been queried: the required number is $O(1/\gamma^2)$, recalling that $\gamma$ is the smallest bias that needs to be detected. Once this many labels are available, $\yh(B)$ is set to a value in $\{-1,0,+1\}$ and remains fixed thereafter. These bias estimates will with high probability be seen to satisfy the following guarantee.
+\begin{defn}
+For any $B \in \B$, we say bias estimate $\yh(B) \in \{+1,-1,0\}$ is \emph{$\gamma$-accurate} if the following holds:
 \begin{itemize}
-\item $\yh(B) = +1 \implies \eta_X(B) > b_1$
-\item $\yh(B) = -1 \implies \eta_X(B) < -b_1$
-\item $\yh(B) = 0 \implies |\eta_X(B)| < b_2$
+\item $\yh(B) = +1 \implies \eta_X(B) > 0$
+\item $\yh(B) = -1 \implies \eta_X(B) < 0$
+\item $\yh(B) = 0 \implies |\eta_X(B)| < \gamma$
 \end{itemize}
-for some constants $0 < b_1 < b_2 < 1$.
+\label{def:accurate-bias-estimate}
+\end{defn}
 
-\item[(d)] {\it Possible labels for a point.} Pick any $x$ and any level $\ell$. Once bias-estimates are available for all balls $B \in \B_\ell(x)$, the possible labels for $x$ at level $\ell$ are $\PL_\ell(x) \subset \{-1,+1\}$, defined as follows:
+Pick any point $x$ and any level $\ell$. Once qualitative bias estimates are available for all balls $B \in \B_\ell(x)$, the set of possible labels for $x$ at level $\ell$, denoted $\PL_\ell(x) \subset \{-1,+1\}$, is defined as follows:
 \begin{itemize}
-\item $\PL_\ell(x)$ contains $+1$ if there exists $B \in \B_\ell(x)$ with $\yh(B) = +1$
-\item $\PL_\ell(x)$ contains $-1$ is defined symmetrically.
+\item $\PL_\ell(x)$ contains $+1$ if there exists a \emph{minimal} ball $B \in \B_{\leq \ell}(x)$ (that is, which has no other $B' \in \B_{\leq \ell}(x)$ strictly contained with it) with $\yh(B) = +1$.
+\item $\PL_\ell(x)$ contains $-1$ under a symmetrical condition.
 \end{itemize}
-More concisely,
-\begin{equation}
-\PL_\ell(x) = \{s \in \{-1, +1\}: \mbox{there exists $B \in \B_\ell(x)$ with $\yh(B) = s$} \} 
-\label{eq:PL}
-\end{equation}
-
-\item[(e)] {\it The label of a point at level $\ell$.} The label of point $x$ at level $\ell$ is a value $\yh_\ell(x) \in \{-1,+1,0,!,\bot\}$. It is initially $\bot$ (meaning ``not yet available''), but once bias-estimates are available for all $B \in \B_\ell(x)$, it is set to a value in $\{-1,+1,0,!\}$ and remains fixed thereafter:
-\begin{equation}
-\yh_\ell(x) = 
-\left\{
-\begin{array}{cl}
-+1 & \mbox{if $\PL_\ell(x) = \{+1\}$} \\
--1 &  \mbox{if $\PL_\ell(x) = \{-1\}$} \\
-0 & \mbox{if $\PL_\ell(x) = \{\}$} \\
-! & \mbox{if $\PL_\ell(x) = \{-1,+1\}$}
-\end{array}
-\right.
-\label{eq:provisional-label}
-\end{equation}
-Points labeled $!$ are ``known unknowns'': they are near the decision boundary and need further investigation. Points labeled $0$ show no significant bias.
-
-\end{enumerate}
-
-\end{enumerate}
+This is spelled out precisely in the algorithm of Figure~\ref{alg:main}. The label-estimate for $x$ at level $\ell$, denoted $\yh_\ell(x)$, is then defined to be $-1$ if $\PL_\ell(x) = \{-1\}$, or $+1$ if $\PL_\ell(x) = \{+1\}$, or $0$ if $\PL_\ell(x) = \{\}$, or $!$ if $\PL_\ell(x) = \{-1,+1\}$, and remains fixed thereafter. Points labeled $!$ are ``known unknowns'': they are near the decision boundary and need further investigation. Points labeled $0$ show no significant bias.
 
 \subsection{The algorithm}
 
-The overall active learning algorithm is in Figure~\ref{alg:main}. It makes calls to subroutines for background and focused sampling, shown in Figure~\ref{alg:sampling}. The querying process can be stopped at any time, whereupon labels will be assigned as follows:
-\begin{equation}
-\yh(x) = 
-\left\{
-\begin{array}{ll}
-\yh_\ell(x) & \mbox{for the largest $\ell$ with $\yh_\ell(x) \in \{-1,+1\}$, if such an $\ell$ exists} \\
-0 & \mbox{(don't know), otherwise}
-\end{array}
-\right.
-\label{eq:final-label}
-\end{equation}
+The overall active learning algorithm is shown in Figure~\ref{alg:main}. It makes calls to subroutines for background and focused sampling, shown in Figure~\ref{alg:sampling}. 
 
 \begin{figure}[h!]
 \framebox{
@@ -185,13 +137,19 @@ The overall active learning algorithm is in Figure~\ref{alg:main}. It makes call
 \item {\tt Background-query}
 \item Update labels:
 \begin{itemize}
-\item Get bias-estimate $\yh(B) \in \{-1,0,+1\}$ for all $B \in \B$ that are now adequately sampled
-\item For each $x \in X$ and level $\ell \geq 0$ for which all of $\B_\ell(x)$ is now sampled:
+\item Update bias-estimates $\yh(B)$ as in Figure~\ref{alg:bias-estimate}
+\item For each $x \in X$ and level $\ell \geq 0$ for which all $\{\yh(B): B \in \B_\ell(x)\}$ are available:
 \begin{itemize}
 \item Determine the possible labels for $x$ at level $\ell$:
-$$\PL_\ell(x) = \{s \in \{-1, +1\}: \mbox{there exists $B \in \B_\ell(x)$ with $\yh(B) = s$} \}$$
+\begin{equation}
+\begin{split}
+\PL_\ell(x) = \{s \in \{-1, +1\}:\  & \mbox{there exists $B \in \B_{\leq \ell}(x)$ with $\yh(B) = s$} \\ 
+& \mbox{and no other $B' \in \B_{\leq \ell}(x)$ has $X_{B'} \subsetneq X_B$.} \} 
+\end{split}
+\label{eq:PL}
+\end{equation}
 \item Set
-$$
+\begin{equation}
 \yh_\ell(x) = 
 \left\{
 \begin{array}{cl}
@@ -201,7 +159,8 @@ $$
 ! & \mbox{if $\PL_\ell(x) = \{-1,+1\}$}
 \end{array}
 \right.
-$$
+\label{eq:provisional-label}
+\end{equation}
 \end{itemize}
 \end{itemize}
 \item Update uncertainty regions:
@@ -218,6 +177,17 @@ $$
 \label{alg:main}
 \end{figure}
 
+The querying process can be stopped at any time, whereupon labels are assigned as follows:
+\begin{equation}
+\yh(x) = 
+\left\{
+\begin{array}{ll}
+\yh_\ell(x) & \mbox{for the largest $\ell$ with $\yh_\ell(x) \in \{-1,+1\}$, if such an $\ell$ exists} \\
+0 & \mbox{(meaning ``don't know''), otherwise}
+\end{array}
+\right.
+\label{eq:final-label}
+\end{equation}
 
 \begin{figure}[h!]
 \framebox{
@@ -247,228 +217,125 @@ $$ S =  \bigcup_{x \in U} \bigcup_{B \in \B_\ell(x)} \{z \in X_B: T_z \leq \tau_
 \begin{itemize}
 \item Query the next unlabeled point in $X \setminus Q$, ordered by $T_z$ values, and add to $Q$
 \end{itemize}
-
 \end{minipage}}
-\caption{The sampling procedures. Each point $x \in X$ has an associated value $T_x$ chosen uniformly at random from $[0,1]$. This smaller this value, the earlier this point is likely to be queried. The focused querying procedure uses level-based thresholds $\tau_\ell = \min(2^{\ell+2}k/n, 1)$.} 
+\caption{The two sampling procedures. Each point $x \in X$ has an associated value $T_x$ chosen uniformly at random from $[0,1]$. This smaller this value, the earlier this point is likely to be queried. The focused querying procedure uses level-based thresholds $\tau_\ell = \min(2^{\ell+2}k/n, 1)$, where $k$ is a global parameter.} 
 \label{alg:sampling}
+\end{figure}
+
+
+\begin{figure}[h!]
+\framebox{
+\begin{minipage}[t]{6.4in}
+\vspace{.1in}
+\begin{itemize}
+\item Suppose $B \in \B_\ell$
+\item Until all the points in $\{z \in X_B: T_z \leq \tau_\ell\}$ have been queried: define $\yh(B) = \bot$
+\item Thereafter: let $\widehat{\eta}(B)$ be the mean of these labels and define
+$$ \yh(B)
+= 
+\left\{
+\begin{array}{ll}
+\sign(\widehat{\eta}(B)) & \mbox{if $|\widehat{\eta}(B)| \geq \gamma/2$} \\
+0 & \mbox{otherwise}
+\end{array}
+\right.
+$$
+\end{itemize}
+\end{minipage}}
+\caption{The qualitative bias $\yh(B)$ of a ball $B$.}
+\label{alg:bias-estimate}
 \end{figure}
 
 
 \section{Analysis of algorithm: finite population setting}
 
-We now analyze the active learning procedure for the finite population annotation problem introduced earlier.
+We now analyze the active learning procedure in a setting where $X \subset \X$ is an arbitrary set of $n$ points; that is, we make no distributional assumption on the manner in which $X$ is generated.
 
 \subsection{Accuracy of bias estimates}
 
-We'll start with a uniform guarantee on the bias estimates for all balls $B \in \B$.
-
-Recall that each point $x \in X$ gets a label $Y \in \{-1,+1\}$ according to the distribution
-$$ \eta(x) = \E[Y | X=x].$$ 
-For any $B \in \B$ with $X_B \neq \emptyset$, let $\eta_X(B)$ be the average $\eta$-value of the points in $B$, that is,
-$$ \eta_X(B) = \frac{1}{|X_B|} \sum_{x \in X_B} \eta(x) .$$
-The specific property we need is encapsulated in the following definition.
-\begin{defn}
-For any $B \in \B$ and $0 < b_1 < b_2$, we say bias estimate $\yh(B) \in \{+1,-1,0\}$ is \emph{$(b_1,b_2)$-accurate} if the following holds:
-\begin{itemize}
-\item $\yh(B) = +1 \implies \eta_X(B) > b_1$
-\item $\yh(B) = -1 \implies \eta_X(B) < -b_1$
-\item $\yh(B) = 0 \implies |\eta_X(B)| < b_2$
-\end{itemize}
-\label{def:accurate-bias-estimate}
-\end{defn}
-For reference, we will take $b_1 = \gamma/2$ and $b_2 = \gamma$, where $\gamma$ is the minimum bias we need to detect, as per the problem specification.
-
-In what follows, take $0 < \delta < 1$ to be a predefined constant, and define
+We'll start with a uniform guarantee on the bias estimates for all balls $B \in \B$. Take $0 < \delta < 1$ to be a predefined constant, and define
 \begin{equation}
 c_1 = \sqrt{3 \ln \frac{4|\B|}{\delta}} .
 \label{eq:c1}
 \end{equation}
-
-For any level $\ell$, define threshold $\tau_\ell$ as follows:
+Recall from Figure~\ref{alg:sampling} that for any level $\ell$, threshold $\tau_\ell$ is given by
 \begin{equation}
 \tau_\ell = \min \left( \frac{2^{\ell+2}k}{n}, \ 1 \right)
 \label{eq:threshold-ell}
 \end{equation}
-For any $B \in \B_\ell$, define its \emph{query-set} to be $\Gamma(B) = \{z \in X_B: T_z \leq \tau_\ell\}$. We base our bias-estimate for $B$ on the labels of points in $\Gamma(B)$.
-
-Our main deviation bound is the following, a consequence of Lemma~\ref{lemma:large-deviation-discrete} in the appendix.
-\begin{thm}[checked]
-Suppose $k \geq 2c_1^2$. With probability at least $1-\delta$, the following is true for all $B \in \B$ with $|X_B| \geq k$:
-\begin{enumerate}
-\item[(a)] The query set $\Gamma(B)$ has size at least $k$.
-\item[(b)] The average label on $\Gamma(B)$, call it $\widehat{\eta}(B)$, satisfies
-$$ \left| \widehat{\eta}(B) - \eta_X(B) \right| \leq \frac{4c_1}{\sqrt{k}}.$$
-\end{enumerate}
-\label{thm:large-deviation-bounds}
-\end{thm}
-\begin{proof}
-These follow immediately by applying Lemma~\ref{lemma:large-deviation-discrete} to each $B \in \B$ and taking a union bound. In particular, note that the choice of $\tau_\ell$ ensures $|X_B| \tau_\ell \geq 2k$.
-\end{proof}
-
-The following corollary of Theorem~\ref{thm:large-deviation-bounds} is immediate.
-\begin{cor}[checked]
-Suppose that $k \geq (8c_1/(b_2-b_1))^2$ where $c_1$ is given in (\ref{eq:c1}). 
-For each $B \in \B$, let $\widehat{\eta}(B)$ be the average label on the query-set $\Gamma(B)$, and define the bias-estimate $\yh(B)$ as follows:
-$$ \yh(B)
-= 
-\left\{
-\begin{array}{ll}
-\sign(\widehat{\eta}(B)) & \mbox{if $|\widehat{\eta}(B)| \geq (b_1 + b_2)/2$} \\
-0 & \mbox{otherwise}
-\end{array}
-\right.
-$$
-With probability $\geq 1-\delta$, all bias estimates $\yh(B)$, for $B \in \B$, are $(b_1,b_2)$-accurate.
-\label{cor:accurate-bias-estimates}
-\end{cor}
-\begin{proof}
-By the choice of $k$, we have from Theorem~\ref{thm:large-deviation-bounds} that 
-$$ \left| \widehat{\eta}(B) - \eta_X(B) \right| < \frac{b_2 - b_1}{2} $$
-for all $B \in \B$.
-\end{proof}
+The choice of $k$ is determined by the following result, proved in the appendix.
+\begin{lemma}
+Suppose that $k \geq (8c_1/\gamma)^2$ where $c_1$ is given in (\ref{eq:c1}). 
+For each $B \in \B$, let $\yh(B)$ be defined as in Figure~\ref{alg:bias-estimate}. Then with probability $\geq 1-\delta$, all the $\yh(B)$, for $B \in \B$, are $\gamma$-accurate.
+\label{lemma:accurate-bias-estimates}
+\end{lemma}
 
 In what follows, we will assume that this $(1-\delta)$-probability event holds.
 
 \subsection{Mind changes}
 
-The label assigned to a data point $x$ at level $\ell$, which we denote $\yh_\ell(x)$, might change as $\ell$ increases; it may flip between $+1$ and $-1$ a few times, with stretches of $0$ or $!$ in between.
+The label assigned to a data point $x$ at level $\ell$, which we denote $\yh_\ell(x)$, might change as $\ell$ increases; it may flip between $+1$ and $-1$ a few times, with stretches of $0$ or $!$ in between. This $\yh_\ell(x)$ is governed by $\PL_\ell(x) \subset \{-1,+1\}$, the ``possible labels'' for $x$ given the information from balls at levels $0$ through $\ell$. 
 
-We distinguish two critical levels for each $x$: the level $L_s(x)$ by which $\yh_\ell(x)$ has ``stabilized'' in the sense that it no longer flips between $+1$ and $-1$ (although it may be $!$), and the level $L_f(x)$ by which $\yh_\ell(x)$ is correct and thus ``finalized''. See Figure~\ref{fig:two-levels} for a pictorial view.
-
-\begin{figure}
-\begin{center}
-\includegraphics[width=3.5in]{home-stretch.pdf}
-\end{center}
-\caption{The tentative label $\yh_\ell(x)$ of a given point $x$ can undergo several mind-changes as the neighborhood of $x$ is sampled at successively finer levels. Beyond level $L_s(x)$, this $\yh_\ell(x)$ will never be the wrong label, but might be $!$. Beyond level $L_f(x)$, the correct label will be assigned.}
-\label{fig:two-levels}
-\end{figure}
+The quantities $\yh_\ell(x)$ and $\PL_\ell(x)$ depend upon the random choices of the querying algorithm. Nevertheless, it is possible to define two critical levels for each $x$: a level $L_1(x)$ by which $\PL_\ell(x)$ will reliably contain the correct label of $x$, and a level $L_2(x)$ by which $\PL_\ell(x)$ will reliably omit the wrong label.
 
 \begin{defn}
-Pick any $x \in X$ with $\eta(x) \neq 0$ and let $g^*(x) = \sign(\eta(x))$ be its Bayes-optimal label. We define $L_s(x)$ to be the smallest integer such that for all $\ell \geq L_s(x)$, the following condition holds:
-\begin{enumerate}
-\item[1.] Some $B \in \B_\ell(x)$ has $g^*(x) \cdot \eta_X(B) \geq b_2$.
-\end{enumerate}
-(If there is no such level, we define $L_s(x) = \infty$.) We define $L_f(x)$ to be the smallest integer such that for all $\ell \geq L_f(x)$, the above condition holds, and additionally:
-\begin{enumerate}
-\item[2.] Every $B \in \B_\ell(x)$ has $g^*(x) \cdot \eta_X(B) \geq -b_1$.
-\end{enumerate} 
-(Again, take $L_f(x) = \infty$ if there is no such level.) 
-\label{defn:Lsf}
+Pick any $x \in X$ with $\eta(x) \neq 0$ and let $s(x) = \sign(\eta(x))$ be its Bayes-optimal label. We define $L_1(x)$ to be the smallest level $\ell$ such that:
+\begin{itemize}
+\item There exists some $B_o \in \B_\ell(x)$ with $s(x) \cdot \eta_X(B_o) \geq \gamma$.
+\item Any $B \in \B(x)$ with $X_{B} \subset X_{B_o}$ also has $s(x) \cdot \eta_X(B) \geq \gamma$.
+\end{itemize}
+We define $L_2(x)$ to be the smallest level $\ell$ such that:
+\begin{itemize}
+\item For all $B \in \B_{\geq \ell}(x)$, we have $s(x) \cdot \eta_X(B) \geq 0$.
+\item For any $B \in \B_{\leq \ell}(x)$ with $s(x) \cdot \eta_X(B) < 0$, there exists $B' \in \B_{\leq \ell}(x)$ with $X_{B'} \subset X_B$ and $s(x) \cdot \eta_X(B') \geq 0$.
+\end{itemize}
+Take $L_1(x)$ or $L_2(x)$ to be $\infty$ if no level meets the requirements. 
+\label{defn:L12}
 \end{defn}
-Condition 1 says that there is a good neighborhood $B \in \B_\ell(x)$, one with a strong bias towards the correct label of $x$. Condition 2 says that there are no bad neighborhoods, that are weakly biased towards the wrong label.
 
-Thus $L_s(x) \leq L_f(x)$, and there might be a large gap between the two. Before the background sampling reaches level $L_s(x)$, it is quite possible that we will predict the wrong label for $x$. However, once all balls in $\B_{L_s(x)}(x)$ have been adequately sampled, point $x$ will either (i) be assigned label $!$ and put in the uncertainty set, in which case it will benefit from focused sampling, or (ii) will get the correct label. Once the balls in $\B_{L_f(x)}(x)$ have been sampled, condition (ii) will hold.
+The significance of these definitions is made clear by the following lemma, proved in the appendix.
 
-\begin{lemma}[checked]
-Pick any $x \in X$ with $\eta(x) \neq 0$ and let $g^*(x) \in \{+1,-1\}$ denote its Bayes-optimal label. Then for any level $\ell$ and any time at which $\yh_\ell(x) \neq \bot$:
+\begin{lemma}
+Pick any $x \in X$ with $\eta(x) \neq 0$ and let $s(x) \in \{+1,-1\}$ denote its Bayes-optimal label. Then for any level $\ell$ and any time at which $\yh_\ell(x) \neq \bot$:
 \begin{enumerate}
-\item[(a)] If $\ell \geq L_s(x)$, then $\yh_\ell(x) \in \{g^*(x), !\}$.
-\item[(b)] If $\ell \geq L_f(x)$, then $\yh_\ell(x) = g^*(x)$.
+\item[(a)] If $\ell \geq L_1(x)$, then $s(x) \in \PL_\ell(x)$ and thus $\yh_\ell(x) \in \{s(x), !\}$. 
+\item[(b)] If $\ell \geq L_2(x)$, then $-s(x) \not\in \PL_\ell(x)$ and thus $\yh_\ell(x) \in \{s(x), 0\}$.
 \end{enumerate}
 \label{lemma:boundary}
 \end{lemma}
-\begin{proof}
-For part (a), note that if $\ell \geq L_s(x)$, then some $B \in \B_\ell(x)$ has significant bias towards the correct label $g^*(x)$, in which case (by Corollary~\ref{cor:accurate-bias-estimates}) $\yh(B) = g^*(x)$. Thus $\yh_\ell(x)$ must either be $!$ (if there is some $B' \in \B_\ell(x)$ with $\yh(B') = -g^*(x)$) or $g^*(x)$.
 
-For (b), both conditions (1) and (2) of Definition~\ref{defn:Lsf} hold, so there is at least one $B \in \B_\ell(x)$ with $\yh(B) = g^*(x)$ and no $B$ with $\yh(B) = -g^*(x)$. Thus $\yh_\ell(x) = g^*(x)$.
-\end{proof}
+\subsection{Boundary sets and label complexity}
 
-\subsection{Bounding the amount of focused sampling}
-
-From Lemma~\ref{lemma:boundary}(b), we see that the label of a point $x$ will be apparent by the time it has been sampled at level $L_f(x)$, and thus $x$ will not appear in the uncertainty set for subsequent levels. That is, 
-$$U_{\ell} \subset \{x \in X: L_f(x) \geq \ell\}.$$ 
-This in turns gives a simple characterization of the points that are queried as part of focused sampling.
-\begin{lemma}[checked]
-All focused samples at level $\ell$ lie in $\{z \in \Delta_\ell: T_z \leq \tau_\ell \}$, where
+For any level $\ell$, define the \emph{boundary set} at that level to be
 \begin{equation}
 \Delta_\ell 
-= \bigcup_{x \in X: L_f(x) \geq \ell} \bigcup_{B \in \B_{\ell}(x)} X_B 
+= \bigcup_{x \in X: L_2(x) \geq \ell} \bigcup_{B \in \B_{\ell}(x)} X_B 
 .
 \label{eq:sampling-region}
 \end{equation}
+It can be shown that all focused samples at level $\ell$ will lie in this set.
+\begin{lemma}
+All focused samples at level $\ell$ lie in $\{z \in \Delta_\ell: T_z \leq \tau_\ell \}$.
 \label{lemma:focused}
 \end{lemma}
-\begin{proof}
-Let $\overline{U}_\ell$ denote the set of all points that are ever (in any round of sampling) in the uncertainty set at level $\ell$. As is apparent from the {\tt Focused-query} subroutine (Figure~\ref{alg:sampling}), all focused samples at level $\ell$ lie in
-$$
-\bigcup_{x \in \overline{U}_\ell} \bigcup_{B \in \B_\ell(x)} \{z \in X_B: T_z \leq \tau_\ell \}
-\ 
-\subset 
-\ 
-\bigcup_{x \in X: L_f(x) \geq \ell} \bigcup_{B \in \B_\ell(x)} \{z \in X_B: T_z \leq \tau_\ell \}
-\ 
-=
-\ 
-\{z \in \Delta_\ell: T_z \leq \tau_\ell \},
-$$
-where the first containment is a consequence of Lemma~\ref{lemma:boundary}.
-\end{proof}
 
-
-A final property we will need for label complexity bounds is that various subsets of interest contain roughly the expected number of points at each level.
-\begin{lemma}
-Pick any $0 < \ell_o \leq \lg n$. With probability at least $1-2(\ell_o+1)e^{-k/3}$, the following hold for all levels $0 \leq \ell \leq \ell_o$.
-\begin{enumerate}
-\item[(a)] $|\{x \in X: T_x \leq \tau_\ell\}| < 2 n \tau_\ell$.
-\item[(b)] If $|\Delta_\ell| \tau_\ell \geq k$ then $|\{x \in \Delta_{\ell}: T_x \leq \tau_\ell\}| < 2 |\Delta_\ell| \tau_\ell$.
-\end{enumerate}
-\label{lemma:level-distribution}
-\end{lemma}
-\begin{proof} 
-Pick any subset $S \subset X$ and let $m = |S|$. Then $|\{x \in S: T_x \leq \tau_\ell\}|$ has a $\mbox{binomial}(m, \tau_\ell)$ distribution with expectation $m \tau_\ell$. The probability that it is greater than or equal to twice its expected value is, by a multiplicative Chernoff bound, at most $e^{-m \tau_{\ell}/3}$.
-
-Both parts follow from this principle; and we take a union bound over all $\ell_o + 1$ levels.
-\end{proof}
-
-Henceforth we assume that these two bounds hold.
-
-\subsection{Label complexity bounds} 
-
+We can now give generic label complexity bounds in terms of the quantities $L_1$, $L_2$, and $\Delta_\ell$.
 \begin{thm}
 Suppose the active learning algorithm is allowed to make $0 < m \leq n$ queries. Define
 $$ \ell_1 = \left\lfloor \lg \frac{m}{32k} \right\rfloor .$$
-and let $\ell_2$ be the largest integer such that
+and let $\ell_2$ be the largest integer $\leq \lg (n/2k)$ such that
 $$ \sum_{\ell = \ell_1 + 1}^{\ell_2} |\Delta_{\ell}| \, \tau_\ell \ \leq \ \frac{m}{8} .$$
-Then any point $x \in X$ with $L_s(x) \leq \ell_1$ and $L_f(x) \leq \ell_2$ will have final label $\yh(x) = g^*(x)$.
+Then any point $x \in X$ with $L_1(x) \leq \ell_1$ and $L_2(x) \leq \ell_2$ will have final label $\yh(x) = g^*(x)$.
 \label{thm:label-complexity}
 \end{thm}
-\begin{proof}
-Denote the first $m/2$ queries by {\it phase one} and the second $m/2$ by {\it phase two}. We will analyze the effect of background sampling in phase one and focused sampling in phase two. We start with the former.
 
-Of the $m/2$ queries in phase one, at least $m/4$ will be background samples. Therefore the $m/4$ points with lowest $T_x$ values are guaranteed to be queried.
-
-Now, for $\ell_1$ as defined, we have from (\ref{eq:threshold-ell}) that $\tau_{\ell_1} \leq m/8n$ and thus from Lemma~\ref{lemma:level-distribution}(a) that at most $m/4$ points in $X$ satisfy $T_x \leq \tau_{\ell_1}$. Therefore all such points are queried in phase one, and all label-estimates $\{\yh_{\ell_1}(x): x \in X\}$ are set.
-
-It then follows from Lemma~\ref{lemma:boundary} that the following hold for any $x \in X$ with $L_s(x) \leq \ell_1$:
-\begin{enumerate}
-\item[(a)] By the end of phase one, $\yh_{\ell_1}(x) \in \{g^*(x), !\}$.
-\item[(b)] For any $\ell > \ell_1$, when $\yh_\ell(x)$ becomes available, it lies in $\{g^*(x), !\}$.
-\item[(c)] If $x$ ever leaves the combined uncertainty region $U = \cup_\ell U_\ell$ during phase two, then its final label as defined in (\ref{eq:final-label}) is henceforth always $\yh(x) = g^*(x)$.
-\end{enumerate}
-
-Now let's move on to phase two. Let $A = \{x \in X: L_s(x) \leq \ell_1, L_f(x) \leq \ell_2\}$. We will show that every point in $A$ must leave the uncertainty region $U$ at some time during phase two. From (c), we can conclude that all these points have their final labels set correctly, once and for all.
-
-We will break the argument into two cases. 
-
-{\it Case 1:} Fewer than $m/4$ focused queries are made in phase two. This can only happen if some round of sampling has an empty uncertainty set, meaning that all of $A$ has left $U$ at that point.
-
-{\it Case 2:} A full $m/4$ focused queries are made in phase two. By the analysis of phase one, none of these queries can be at level $\leq \ell_1$ and by Lemma~\ref{lemma:focused}, the total number of possible focused queries at levels $\ell_1+1$ through $\ell_2$ inclusive is at most
-$$\sum_{\ell=\ell_1+1}^{\ell_2} |\{z \in \Delta_{\ell}: T_z \leq \tau_\ell \}| 
-\ < \ 
-\sum_{\ell=\ell_1+1}^{\ell_2} 2 |\Delta_{\ell}| \tau_\ell
-\ \leq \ 
-\frac{m}{4} ,
-$$
-where the first inequality is from Lemma~\ref{lemma:level-distribution}(b). Thus at least one query in phase two must be at level $\ell_2 +1$. When this query is made, every $U_\ell$ with $\ell \leq \ell_2$ must be empty and thus all of $A$ must have left the uncertainty region (no $x \in A$ can be part of $U_\ell$ for $\ell > \ell_2 \geq L_f(x)$). 
-
-Thus every $x \in A$ must leave the uncertainty region at some point in phase two, and their final labels are subsequently set correctly.
-\end{proof}
+The argument is roughly that during the first $m/2$ queries, background sampling alone is enough to ensure that all points with $L_1(x) \leq \ell_1$ get $\yh_\ell$ values that are henceforth either the correct labels or $!$. During the next $m/2$ queries, focused sampling then correctly resolves the subset of these points with $L_2(x) \leq \ell_2$.
 
 \subsection{Example: One-dimensional data with Massart noise}
 
 In order to apply Theorem~\ref{thm:label-complexity}, we need
 \begin{itemize}
-\item upper bounds on the critical levels $L_s(x)$ and $L_f(x)$ for each point $x \in X$, and
+\item upper bounds on the critical levels $L_1(x)$ and $L_2(x)$ for each point $x \in X$, and
 \item upper bounds on the size of the sampling region $\Delta_\ell$ at each level $\ell$.
 \end{itemize}
 We now illustrate how this works out in a canonical setting.
@@ -476,9 +343,11 @@ We now illustrate how this works out in a canonical setting.
 Suppose $X$ is an arbitrary set of $n$ points in $\X = [0,1]$ and is labeled according to a conditional probability function $\eta: \X \to [-1,1]$ that satisfies the Massart noise condition:
 \begin{itemize}
 \item There are $p$ disjoint open intervals $I_1, \ldots, I_p$, such that $\X$ is (the closure of) their union, and
-\item for each $j$, either $\eta(x) > \gamma$ for all $x \in I_j$ or $\eta(x) < -\gamma$ for all $x \in I_j$. In the first case, we write $g^*(I_j) = +1$ and in the second case, $g^*(I_j) = -1$.
+\item for each $j$, either $\eta(x) > \gamma$ for all $x \in I_j$ or $\eta(x) < -\gamma$ for all $x \in I_j$. In the first case, we write $s(I_j) = +1$ and in the second case, $s(I_j) = -1$.
 \end{itemize}
-Here $0 < \gamma < 1$ is some constant. See Figure~\ref{fig:oned-massart} for an illustrative example.
+Here $0 < \gamma < 1$ is some constant. See Figure~\ref{fig:oned-massart} for an illustrative example. For concreteness, the intervals $I_j$ can be written in the form $(\lambda_{j-1}, \lambda_j)$, where
+$$ 0 = \lambda_0 < \lambda_1 < \lambda_2 < \cdots < \lambda_{p-1} < \lambda_p = 1 .$$
+Here $\lambda_1, \ldots, \lambda_{p-1}$ are the \emph{boundary points} between intervals.
 
 \begin{figure}
 \begin{center}
@@ -488,77 +357,25 @@ Here $0 < \gamma < 1$ is some constant. See Figure~\ref{fig:oned-massart} for an
 \label{fig:oned-massart}
 \end{figure}
 
-We will take $\B$ to consist of all open intervals of $[0,1]$, with $\B(x)$ denoting intervals that contain point $x$. We will choose accuracy parameters $b_1, b_2$ so that $0 < b_1 < b_2 \leq \gamma$.
-
-The intervals $I_j$ can be written in the form $(\lambda_{j-1}, \lambda_j)$, where
-$$ 0 = \lambda_0 < \lambda_1 < \lambda_2 < \cdots < \lambda_{p-1} < \lambda_p = 1 .$$
-Here $\lambda_1, \ldots, \lambda_{p-1}$ are the \emph{boundary points} between intervals.
-\begin{lemma}
-Pick any $x \in \X$; suppose $x \in I_j$.
-\begin{enumerate}
-\item[(a)] Let $n_j = |X \cap I_j|$. Then $L_s(x) \leq \lg (n/n_j)$.
-\item[(b)] Let $r(x)$ be the minimum number of data points that lie between $x$ and a boundary point, counting $x$ as well; this is either the number of points in the left-interval $(\lambda_{j-1},x]$ (if $j > 1$) or the right-interval $[x, \lambda_j)$ (if $j < p$), whichever is smaller. Then $L_f(x) \leq \lg (n/r(x))$.
-\end{enumerate}
-\label{lemma:oned-massart-Lsf}
-\end{lemma}
-\begin{proof}
-For (a), notice first that $I_j \in \B_{\ell}(x)$ for $\ell = \lceil (\lg n/n_j) - 1 \rceil$. Moreover, $g^*(I_j) \cdot \eta_X(I_j) > \gamma \geq b_2$. Thus $I_j$ belongs to $\B_\ell(x)$ and is strongly biased towards the correct label. For levels $> \ell$, we can show a similar property for suitable sub-intervals of $I_j$.
-
-For (b), consider any $\ell \geq \lceil (\lg n/r(x)) - 1 \rceil$. First of all, $\B_\ell(x)$ includes some sub-interval $B \subset I_j$ which is strongly biased towards the correct label: $g^*(I_j) \cdot \eta_X(B) > \gamma \geq b_2$. At the same time, $\B_\ell(x)$ does not contain any sets that are weakly biased towards the wrong label. To see this, notice that any $B \in \B(x)$ with $\mbox{sign}(\eta_X(B)) \neq g^*(I_j)$ must contain either the entire left-interval $(\lambda_{j-1},x]$ or the entire right-interval $[x, \lambda_j)$, and thus has at least $r(x) + 1$ points, which means that it is too large to be in $\B_\ell$.
-\end{proof}
-
-Based on these $L_s(x)$ and $L_f(x)$, it is easy to bound the size of the focused query region $\Delta_\ell$ at each level.
-\begin{lemma}
-For any $\ell \geq 0$, let $\Delta_\ell$ denote the focused querying region at level $\ell$, as defined in (\ref{eq:sampling-region}). Then $|\Delta_\ell| \leq (p-1)n/2^{\ell-2}$.
-\label{lemma:oned-massart-query-region}
-\end{lemma}
-
-\begin{proof}
-We have
-\begin{align*}
-\Delta_\ell 
-&= \bigcup_{x \in X: L_f(x) \geq \ell} \bigcup_{B \in \B_{\ell}(x)} (B \cap X) \\
-&\subset \bigcup_{x \in X: r(x) \leq n/2^\ell} \bigcup_{B \ni x: |B \cap X| < n/2^\ell} (B \cap X) 
-.
-\end{align*}
-This includes at most $n/2^{\ell-1}$ points from $X$ on either side of each boundary point $\lambda_j$.
-\end{proof}
+We will take $\B$ to consist of all open intervals of $[0,1]$, with $\B(x)$ denoting intervals that contain point $x$. It can be shown that for any $x \in I_j$,
+\begin{itemize}
+\item $L_1(x) \leq \lg (n/n_j)$, where $n_j = |X \cap I_j|$, and
+\item $L_2(x) \leq \lg (n/r(x))$, where $r(x)$ is the minimum number of data points that lie between $x$ and a boundary point ($\lambda_{j-1}$ or $\lambda_j$), counting $x$ as well.
+\end{itemize}
+A simple counting argument then shows $|\Delta_\ell| \leq (p-1)n/2^{\ell-2}$; that is, the boundary sets shrink in size exponentially. With $L_1$, $L_2$, and $|\Delta_\ell|$ values in place, Theorem~\ref{thm:label-complexity} can be applied directly to give the following label complexity bound.
 
 \begin{thm}
-Pick any $0 < \epsilon, \delta < 1$. Suppose we run the algorithm of Figure~\ref{alg:main} with $b_1 = \gamma/2$ and $b_2 = \gamma$. With probability at least $1-\delta$, after making
+Pick any $0 < \epsilon, \delta < 1$. Suppose we run the algorithm of Figure~\ref{alg:main} with $k = O((1/\gamma^2) \ln (n/\delta))$. With probability at least $1-\delta$, after making
 $$ O \left( \frac{p-1}{\gamma^2} \ln \frac{p-1}{\epsilon} \ln \frac{n}{\delta} \right) $$
-queries, the algorithm will assign the correct label $g^*(x)$ to at least $1-\epsilon$ fraction of $X$.
+queries, the algorithm will assign the correct label $g^*(x)$ to at least $1-\epsilon$ fraction of $X$, except possibly the $2k$ points of either side of each boundary point.
 \label{thm:oned-massart}
 \end{thm}
-\begin{proof}
-Under this choice of $b_1$ and $b_2$, we will set $k$ to $O((1/\gamma^2) \ln (n/\delta))$, as per Corollary~\ref{cor:accurate-bias-estimates}. Here we are using the fact that although $\B$ is infinite, we need only consider $O(n^2)$ distinct intervals since $|X| = n$.
 
-Next, using Lemma~\ref{lemma:oned-massart-query-region}, we have that for any integers $0 \leq \ell_1 < \ell_2$,
-$$ \sum_{\ell = \ell_1+1}^{\ell_2} |\Delta_\ell| \tau_\ell
-\ \leq \ 
-\sum_{\ell = \ell_1+1}^{\ell_2} \frac{(p-1) n}{2^{\ell-2}} \cdot \frac{2^{\ell+2}k}{n}
-\ = \ 
-16(p-1)k (\ell_2 - \ell_1).
-$$
-We can then apply Theorem~\ref{thm:label-complexity} to conclude that $m$ query points are enough to correctly classify all $x \in X$ with $L_s(x) \leq \ell_1$ and $L_f(x) \leq \ell_2$, for
-\begin{align*}
-\ell_1
-&= 
-\left\lfloor \lg \frac{m}{32k} \right\rceil \\
-\ell_2
-&=
-\ell_1 + \frac{m}{128 k(p-1)}
-\end{align*}
-Using Lemma~\ref{lemma:oned-massart-Lsf}, we have that in every target interval $I_j$ with $n_j/n = \Omega(k/m)$, all but $n \cdot 2^{-\Omega(m/k(p-1))}$ points will be correctly classified. For large enough $m$, this means that the fraction of misclassified or unclassified points in $X$ will be at most $\epsilon$ after $O(k(p-1) \log ((p-1)/\epsilon))$ queries.
-\end{proof}
+The $2k$ points nearest each boundary cannot be labeled by our algorithm with any certainty because they lie in intervals with a strongly positive bias as well as in intervals with a strongly negative bias. This qualification would be removed if were allowed to make multiple queries to each point, because in that case we would include $O(k)$ copies of each point, as explained earlier.
 
 \subsection{Example: One-dimensional data with monotonic $\eta$}
 
-We now turn to another one-dimensional setting. Once again, $X$ consists of $n$ arbitrarily-placed points in $\X = [0,1]$. This time, however, they are labeled according to a conditional probability function $\eta: \X \to [-1,1]$ that is continuous and strictly increasing. Let $\lambda \in (0,1)$ denote the point for which $\eta(\lambda) = 0$.
-
-As before, we will take $\B$ to consist of all open intervals, and $\B(x)$ to be intervals containing $x$. Given a threshold $\gamma > 0$ such that we do not need to label points with $|\eta(x)| < \gamma$, we can set accuracy parameters $b_2 = \gamma, b_1 = \gamma/2$.
-
-Let $\lambda_L, \lambda_R$ be the points for which $\eta(\lambda_L) = -\gamma$ and $\eta(\lambda_R) = \gamma$. Thus we are not required to label points in the interval $[\lambda_L, \lambda_R]$. See Figure~\ref{fig:oned-monotonic} for an example.
+We now turn to another one-dimensional setting. Once again, $X$ consists of $n$ arbitrarily-placed points in $\X = [0,1]$. This time, however, they are labeled according to a conditional probability function $\eta: \X \to [-1,1]$ that is continuous and strictly increasing. Let $\lambda \in (0,1)$ denote the point for which $\eta(\lambda) = 0$. Also, let $\lambda_L, \lambda_R$ be the points for which $\eta(\lambda_L) = -\gamma$ and $\eta(\lambda_R) = \gamma$. Thus we are not required to label points in the interval $(\lambda_L, \lambda_R)$. See Figure~\ref{fig:oned-monotonic} for an example.
 
 \begin{figure}
 \begin{center}
@@ -569,125 +386,149 @@ Let $\lambda_L, \lambda_R$ be the points for which $\eta(\lambda_L) = -\gamma$ a
 \end{figure}
 
 
-\begin{lemma}
-Pick any $x \in [0, \lambda_L] \cup [\lambda_R, 1]$.
-\begin{enumerate}
-\item[(a)] Define $n^- = |[0,\lambda_L) \cap X|$ and $n^+ = |(\lambda_R,1] \cap X|$. Then
-$$
-L_s(x)
-\leq
-\left\{
-\begin{array}{ll}
-\lg n/n^+ & \mbox{if $x > \lambda_R$} \\
-\lg n/n^- & \mbox{if $x < \lambda_L$}
-\end{array}
-\right.
-$$
-\item[(b)] Let $r(x)$ be the number of points between $x$ and the boundary point $\lambda$, counting $x$ itself. That is, $r(x) = |[x,\lambda) \cap X|$ if $x < \lambda$, or $|(\lambda, x] \cap X|$ if $x > \lambda$. Then
-$$ L_f(x) \leq \max\left( L_s(x), \left\lceil \lg \frac{n}{r(x)} -1 \right\rceil \right).$$
-\end{enumerate}
-\label{lemma:oned-monotonic-Lsf}
-\end{lemma}
-\begin{proof}
-For (a), take any $x > \lambda_R$ (the other case is similar). The interval $B = (\lambda,1)$ lies in $\B_\ell(x)$ for $\ell = \lceil \lg (n/n^+) - 1 \rceil$ and has $\eta_X(B) > b_2$. For larger $\ell$, we get a similar result with a suitable sub-interval of $(\lambda,1)$.
-
-For (b), note that for $\ell \geq \lceil \lg (n/r(x)) - 1 \rceil$, there is no $B \in \B_\ell(x)$ that extends to the other side of the boundary. Moreover, for $\ell \geq L_s(x)$, there is at least one interval in $\B_\ell(x)$ with bias of the correct sign and magnitude at least $b_2$.
-\end{proof}
-
-\section{Label complexity bounds in the distributional setting}
-
-We now turn to a setting where the points $X$ are sampled from a distribution $\mu$ on $\X$. The algorithm is unchanged, but we seek to bound label complexity in terms of properties of the joint distribution specified by $\mu$ and $\eta$.
-
-\subsection{Sampling level and probability mass}
-
-To begin with, we relate the number of points in a ball $B \in \B$ (and thus the level of the ball) to its probability mass under the marginal distribution.
-\begin{lemma}
-With probability at least $1-\delta$, for all $B \in \B$ with $n \mu(B) \geq 12 \ln (2|\B|/\delta)$, we have
-$$ \frac{\mu(B)}{2} \leq \frac{|X_B|}{n} \leq 2 \mu(B) .$$
-\label{lemma:ball-size-bounds}
-\end{lemma}
-\begin{proof}
-It is an immediate consequence of the multiplicative Chernoff bound that with probability at least $1-\delta$, for all $B \in \B$,
-$$ \frac{|X_B|}{n} = \mu(B) \left(1 \pm \sqrt{\frac{3}{n \mu(B)} \ln \frac{2|\B|}{\delta}} \right) .$$
-\end{proof}
-
-Henceforth assume that this high-probability event holds. Now, if $B \in \B_\ell$, then
-$$ \mu(B) \leq \frac{2 |X_B|}{n} < \frac{2}{2^\ell} $$
-and thus $\ell < \lg (2/\mu(B))$. A similar chain of inequalities in the other direction yields $\ell \geq \lg 1/(4 \mu(B))$. We thus see that balls of probability mass $p$ belong to level $\ell \approx \lg (1/p)$.
-
-\subsection{Adjustments to the finite population analysis}
-
-In the distributional setting, our notion of the \emph{average bias} of a ball $B \in \B$ changes from the quantity $\eta_X(B)$ defined earlier (namely, the average $\eta$-value of the finite set of points $X \cap B$) to
-$$ \eta(B) = \frac{1}{\mu(B)} \int \eta \, d\mu ,$$
-which is defined as long as $\mu(B) > 0$. Correspondingly, we relate the accuracy of bias estimates $\yh(B)$ to $\eta(B)$ rather than $\eta_X(B)$.
-\begin{defn}
-For any $B \in \B$ and $0 < b_1 < b_2$, we say bias estimate $\yh(B) \in \{+1,-1,0\}$ is \emph{distributionally $(b_1,b_2)$-accurate} if the following holds:
+Take $\B$ to consist of all closed intervals, and $\B(x)$ to be intervals containing $x$. It can be shown that for $n^- = |[0,\lambda_L] \cap X|$ and $n^+ = |[\lambda_R,1] \cap X|$, 
 \begin{itemize}
-\item $\yh(B) = +1 \implies \eta(B) > b_1$
-\item $\yh(B) = -1 \implies \eta(B) < -b_1$
-\item $\yh(B) = 0 \implies |\eta(B)| < b_2$
+\item $L_1(x) \leq \lg (n/n^+)$ if $x \geq \lambda_R$ and $L_1(x) \leq \lg (n/n^-)$ if $x \leq \lambda_L$, and
+\item $L_2(x) \leq \lg (n/r(x))$, where $r(x)$ is the number of data points between $x$ and $\lambda$, counting $x$ as well.
 \end{itemize}
-\label{def:accurate-bias-estimate-dist}
-\end{defn}
+The boundary region is again exponentially shrinking, $|\Delta_\ell| \leq 4n/2^\ell$, giving the following label complexity bound.
 
-We can show that Theorem~\ref{thm:large-deviation-bounds} and Corollary~\ref{cor:accurate-bias-estimates} continue to hold with $\eta(B)$ in place of $\eta_X(B)$. We state the result here for convenience.
+
 \begin{thm}
-Suppose that $k \geq (8c_1/(b_2-b_1))^2$ where $c_1$ is given in (\ref{eq:c1}). 
-For each $B \in \B$, let $\widehat{\eta}(B)$ be the average label on the query-set $\Gamma(B) = \{z \in X_B: T_z \leq \tau_\ell\}$, and define the bias-estimate $\yh(B)$ as follows:
-$$ \yh(B)
-= 
-\left\{
-\begin{array}{ll}
-\sign(\widehat{\eta}(B)) & \mbox{if $|\widehat{\eta}(B)| \geq (b_1 + b_2)/2$} \\
-0 & \mbox{otherwise}
-\end{array}
-\right.
-$$
-With probability $\geq 1-\delta$, all bias estimates $\yh(B)$, for $B \in \B$, are distributionally $(b_1,b_2)$-accurate.
-\label{thm:accurate-bias-estimates-dist}
+Define
+\begin{align*}
+r^+ &= \min \{r(x): x \in X \cap [\lambda_R,1]\} \\
+r^- &= \min \{r(x): x \in X \cap [0,\lambda_L]\} \\
+\end{align*}
+Pick any $0 < \delta < 1$. Suppose we run the algorithm of Figure~\ref{alg:main} with $k = O((\log n)/\gamma^2)$.  Take any 
+$$ m \geq 64k \cdot \max \left( \frac{n}{\min(n^+,n^-)}, \ 2 \lg \frac{\min(n^+,n^-)}{\min(r^+,r^-)} \right) .$$
+With probability at least $1-\delta$, after making $m$ queries, the algorithm will correctly label all points $x \in X$ with $|\eta(x)| \geq \gamma$ and $r(x) \geq 2k$.
+\label{thm:oned-monotonic}
 \end{thm}
 
-We need to make a similar small adjustment to the definitions of $L_s$ and $L_f$, merely swapping $\eta_X(B)$ for $\eta(B)$. Under the modified definitions, Lemma~\ref{lemma:focused} continues to hold; we restate it here for reference.
+For $n^+, n^-, r^+, r^- = \Theta(n)$, this yields a label complexity of $O(\log n)$.
+
+\section{Analysis of algorithm: distributional setting}
+
+We now turn to a setting where the points $X$ are sampled from a distribution $\mu$ on $\X \subset \R^d$. The algorithm is unchanged, but we seek to bound label complexity in terms of properties of $\mu$ and $\eta$.
+
+For simplicity, we will focus on the case where $\mu$ is absolutely continuous with respect to the Lebesgue measure on $\R^d$ and thus admits a density. We will take $\B$ to consist of all open balls $B(x,r) = \{z: \|z-x\| < r\}$, with $\B(x)$ being balls that contain $x$.
+
+\subsection{A generic bound based on a probabilistic notion of distance}
+
+A key quantity in our analysis is a notion of distance based on the probability distribution $\mu$. We take the distance from a point $x$ to a set $S$ to be the probability mass of the smallest ball that contains $x$ and touches $S$.
+\begin{defn}
+For any $x \in \X$ and $S \subset \X$, define
+$$ \dist(x,S) = \inf \{\mu(B): B \in \B(x), B \cap S \neq \emptyset\} .$$ 
+\label{defn:prob-dist}
+\end{defn}
+We will see that $L_2(x)$ can be bounded in terms of such distances. In what follows, for $s \in \{-1,0,+1\}$, take $\X^s$ to denote $\{x \in \X: \sign(\eta(x)) = s\}$.
 \begin{lemma}
-All focused samples at level $\ell$ lie in $\{z \in \Delta_\ell: T_z \leq \tau_\ell \}$, where
-$$ \Delta_\ell = \bigcup_{x \in X: L_f(x) \geq \ell} \bigcup_{B \in \B_{\ell}(x)} X_B .$$
-\label{lemma:focused-dist}
+For any $x \in \X$ with $\eta(x) \neq 0$, let $s(x) = \sign(\eta(x))$. Then
+$$ L_2(x) \leq \left\lceil \lg \frac{1}{\dist(x, \X^{-s(x)})} \right\rceil + 1.$$
+\label{lemma:L2-bound}
 \end{lemma}
 
-In a similar vein, we have an analog of Lemma~\ref{lemma:level-distribution} for the distributional setting.
-\begin{lemma}
-With probability at least $1-2(\ell_o+1)e^{-k/3}$, the following hold for all levels $0 \leq \ell \leq \ell_o$.
-\begin{enumerate}
-\item[(a)] $|\{x \in X: T_x \leq \tau_\ell\}| \leq 2 n \tau_\ell$.
-\item[(b)] If $\mu(\Delta_\ell) \tau_\ell \geq k/n$ then $|\{x \in \Delta_{\ell}: T_x \leq \tau_\ell\}| \leq 2 n \mu(\Delta_\ell) \tau_\ell$.
-\end{enumerate}
-\label{lemma:level-distribution-dist}
-\end{lemma}
-\begin{proof} 
-  Part (a) is as in Lemma~\ref{lemma:level-distribution-dist}. For (b), pick any subset $S \subset \X$. If $X$ consists of $n$ independent draws from $\mu$, then $|\{x \in S: T_x \leq \tau_\ell\}|$ has a $\mbox{binomial}(n, \mu(S) \tau_\ell)$ distribution with expectation $n \mu(S) \tau_\ell$. The probability that it is more than twice its expected value is, by a multiplicative Chernoff bound, at most $e^{-n \mu(S) \tau_\ell/3}$.
-\end{proof}
+We will also use this probabilistic distance to define notions of boundary. We take the $p$-boundary to consist of points that are at distance $\leq p$ from points of the opposite label.
+\begin{defn}
+For any $p > 0$, define $\partial_p = \{x \in \X: \dist(x, \X^{-s(x)}) \leq p\}$.
+\label{defn:boundary}
+\end{defn}
+Notice that this includes all $x$ with $\eta(x) = 0$.
 
-Theorem~\ref{thm:label-complexity} continues to hold, in the following form. The only change to the proof is to use Lemma~\ref{lemma:level-distribution-dist}(b) in place of Lemma~\ref{lemma:level-distribution}(b).
+The $(p,q)$ second-order boundary consists of points at distance $\leq q$ from the $p$-boundary.
+\begin{defn}
+For any $p,q > 0$, define $\partial_{p,q} = \{x \in \X: \dist(x, \partial_p) \leq q\}$.
+\label{defn:boundary2}
+\end{defn}
+
+We can bound $\Delta_\ell$, the query region at level $\ell$, in terms of the second-order boundary.
+\begin{lemma}
+For any $\ell \geq 0$, we have $\Delta_\ell \subset \partial_{4/2^\ell, 2/2^\ell}$.
+\label{lemma:delta-continuous}
+\end{lemma}
+
+Theorem~\ref{thm:label-complexity} now takes on the following form. 
 \begin{thm}
 Suppose the active learning algorithm is allowed to make $0 < m \leq n$ queries. Define
 $$ \ell_1 = \left\lfloor \lg \frac{m}{32k} \right\rfloor .$$
-and let $\ell_2$ be the largest integer such that
-$$ \sum_{\ell = \ell_1 + 1}^{\ell_2} 2^\ell \mu(\Delta_{\ell}) \ \leq \ \frac{m}{32k} .$$
-Then any point $x \in X$ with $L_s(x) \leq \ell_1$ and $L_f(x) \leq \ell_2$ will have a final label $\yh(x)$ that is correctly set to $g^*(x)$.
+and let $\ell_2$ be the largest integer $\leq \lg (n/2k)$ such that
+$$ \sum_{\ell = \ell_1 + 1}^{\ell_2} 2^\ell \mu(\partial_{4/2^\ell, 2/2^\ell}) \ \leq \ \frac{m}{32k} .$$
+Then any point $x \in X$ with $L_1(x) \leq \ell_1$ and $L_2(x) \leq \ell_2$ will have a final label $\yh(x)$ that is correctly set to $g^*(x)$.
 \label{thm:label-complexity-dist}
 \end{thm}
 
 
 
-\pagebreak
+\subsection{Bounds under two assumptions}
 
+In order to apply Theorem~\ref{thm:label-complexity-dist}, we need to be able to bound two quantities: the levels $L_1(x)$ and $L_2(x)$; and the probability masses of boundary sets $\partial_{p,q}$. To do this, we now introduce two simplifying assumptions.
+
+ Let $\X_\gamma = \{x \in \X: |\eta(x)| \geq \gamma\}$; thus $X \cap \X_\gamma$ is the set of points we want labeled. We will further divide this set by label: for $s \in \{-1,+1\}$, let $\X^s_\gamma = \{x \in \X: s \cdot \eta(x) \geq \gamma\}$. 
+\begin{enumerate}
+\item[(A1)] There is an absolute constant $p_o > 0$ for which the following holds: for any $x \in \X_\gamma$, there exists $B \in \B(x)$ such that $B \subset \X^{s(x)}_\gamma$ and $\mu(B) \geq p_o$.
+\end{enumerate}
+As we will see, this assumption holds if the decision regions have bounded curvature. It allows us to bound $L_1(x)$ easily.
+\begin{lemma}
+Under (A1), every $x \in \X_\gamma$ has $L_1(x) \leq \lceil \lg (1/p_o) \rceil$.
+\label{lemma:L1-bound}
+\end{lemma} 
+The second assumption is a variant of the Tsybakov margin condition.
+\begin{enumerate}
+\item[(A2)] There are absolute constants $C > 0$ and $0 < \sigma < 1$ for which the following holds: for any $p > 0$, we have $\mu(\partial_{p,p}) \leq C p^\sigma$.
+\end{enumerate}
+If, for instance, $\mu$ were the uniform distribution over $[0,1]^d$, we would expect $\sigma \sim 1/d$.
+
+Under (A1) and (A2), we can give concrete label complexity bounds.
+\begin{thm}
+Assume (A1) and (A2). There is an absolute constant $C'$ for which the following holds. Pick $0 < \delta < 1$ and take $k = O((d \log n)/\gamma^2)$. If the algorithm of Figure~\ref{alg:main} is allowed to make $m \geq 128k/p_o$ queries and $n = \Omega(m^{1/(1-\sigma)})$, then with probability at least $1-\delta$, it will correctly label all but
+$$ C' \left(\frac{k}{m}\right)^{\sigma/(1-\sigma)} $$
+fraction of $X$.
+\label{thm:label-complexity-specific}
+\end{thm}
+
+\subsection{Realizing the assumptions}
+
+We'll now see how (A1) and (A2) are consequences of somewhat more commonplace assumptions on data distributions. The first three are standard in nonparametric estimation while the fourth is common in computational geometry.
+\begin{enumerate}
+\item[(C1)] [Strong density condition] Distribution $\mu$ on $\X \subset \R^d$ admits a density that is bounded below and above: there exist constants $c_o, c_1 > 0$ such that for all balls $B \in \B$,
+$$ c_o \vol(B) \leq \mu(B) \leq c_1 \vol(B) ,$$
+where $\vol(\cdot)$ is $d$-dimensional volume.
+\item[(C2)] [Holder-smoothness of conditional probability function] There exist constants $L, \alpha$ such that
+$$ |\eta(x) - \eta(x')| \ \leq \ L \|x - x'\|^\alpha$$
+for all $x,x' \in \X$.
+\item[(C3)] [Tsybakov margin condition] There exists constants $M, \beta$ such that
+$$ \mu(\{x \in \X: |\eta(x)| \leq \tau\}) \leq M \tau^\beta$$
+for all $\tau \in (0,1)$.
+\item[(C4)] [Bounded curvature] The boundaries $\{x \in \X: \eta(x) = \gamma\}$ and $\{x \in \X: \eta(x) = -\gamma\}$ are manifolds of reach $r_o > 0$.
+\end{enumerate}
+
+\begin{lemma}
+Conditions (C1) and (C4) yield assumption (A1), with $p_o = r_o^d \cdot c_o \cdot v_d$, where $v_d$ is the volume of the unit ball in $\R^d$.
+\label{lemma:A1}
+\end{lemma}
+
+\begin{proof}
+Pick any $x \in \X_\gamma^+$ (the negative case is similar), and let $r = \inf_{z \in (\X \setminus \X_\gamma^+)}$. If $r \geq r_o$, then $B = B(x,r_o)$ is entirely in $\X_\gamma^+$. Otherwise, the reach condition (C2) implies the existence of a ball $B \subset \X_\gamma^+$ that contains $x$ and has radius $r_o$. Either way, $\mu(B) \geq c_o \vol(B) = c_o v_d r_o^d$ by (C1). 
+\end{proof}
+
+\begin{lemma}
+Conditions (C1), (C2), and (C3) yield assumption (A2) with $\sigma = \alpha \beta/d$. 
+\end{lemma}
+
+\begin{proof}
+Under (C1), any ball of probability mass $\leq p$ has volume $\leq p/c_o$ and radius $\leq (p/(c_o v_d))^{1/d}$. Let's call this latter quantity $r$. Thus, any point in $\partial_p$ lies within distance $2r$ of the boundary, while a point in $\partial_{p,p}$ lies within distance $4r$. By (C2), any point in $\partial_{p,p}$ has $|\eta(x)| \leq L (4r)^\alpha$. The total probability mass of such points can then be bounded using (C3):
+$$ \mu(\partial_{p,p}) \ \leq \ M (L (4r)^\alpha)^\beta \ = \ M \cdot L^\beta \cdot 4^{\alpha\beta} \cdot \left( \frac{p}{c_o v_d} \right)^{\alpha\beta/d} .$$
+\end{proof}
+
+\pagebreak
 \appendix
 
-\section{Technicalities}
+\section{Technicalities: discrete setting}
 
 \subsection{Large deviation bounds for the discrete setting}
 
-\begin{lemma}[rechecked]
+\begin{lemma}
 Fix a confidence parameter $0 < \delta < 1$ and a positive integer $k \geq 6 \ln (4/\delta)$. 
 
 Let $x_1, \ldots, x_m$ be any collection of points. Suppose that the labels $Y_i \in \{-1,1\}$ of these points are independent, with $\E Y_i = \eta(x_i)$. Define
@@ -776,5 +617,360 @@ $$t = \sqrt{\frac{2}{|X_B|} \ln \frac{2|\B|}{\delta}}$$
 and applying a union bound over all $B \in \B$.
 \end{proof}
 
+\subsection{Proof of Lemma~\ref{lemma:accurate-bias-estimates}}
+
+We will use Lemma~\ref{lemma:large-deviation-discrete} to obtain a uniform guarantee on the bias estimates for all balls $B \in \B$.
+
+Recall that each point $x \in X$ gets a label $Y \in \{-1,+1\}$ according to the distribution
+$$ \eta(x) = \E[y | x].$$ 
+For any $B \in \B$ with $X_B \neq \emptyset$, let $\eta_X(B)$ be the average $\eta$-value of the points in $B$, that is,
+$$ \eta_X(B) = \frac{1}{|X_B|} \sum_{x \in X_B} \eta(x) .$$
+
+Recall the definitions of the constant $c_1$ from (\ref{eq:c1}) and of the thresholds $\tau_\ell$ from (\ref{eq:threshold-ell}). For any $B \in \B_\ell$, define its \emph{query-set} to be $\Gamma(B) = \{z \in X_B: T_z \leq \tau_\ell\}$. We base our bias-estimate for $B$ on the labels of points in $\Gamma(B)$.
+
+\begin{lemma}
+Suppose $k \geq 2c_1^2$. With probability at least $1-\delta$, the following is true for all $B \in \B$ with $|X_B| \geq k$:
+\begin{enumerate}
+\item[(a)] The query set $\Gamma(B)$ has size at least $k$.
+\item[(b)] The average label on $\Gamma(B)$, call it $\widehat{\eta}(B)$, satisfies
+$$ \left| \widehat{\eta}(B) - \eta_X(B) \right| \leq \frac{4c_1}{\sqrt{k}}.$$
+\end{enumerate}
+\label{lemma:large-deviation-bounds}
+\end{lemma}
+\begin{proof}
+These follow immediately by applying Lemma~\ref{lemma:large-deviation-discrete} to each $B \in \B$ and taking a union bound. In particular, note that the choice of $\tau_\ell$ ensures $|X_B| \tau_\ell \geq 2k$.
+\end{proof}
+
+The following corollary of Lemma~\ref{lemma:large-deviation-bounds} is immediate.
+\begin{cor}
+Suppose that $k \geq (8c_1/\gamma)^2$. For each $B \in \B$, let $\widehat{\eta}(B)$ be the average label on the query-set $\Gamma(B)$, and define the bias-estimate $\yh(B)$ as follows:
+$$ \yh(B)
+= 
+\left\{
+\begin{array}{ll}
+\sign(\widehat{\eta}(B)) & \mbox{if $|\widehat{\eta}(B)| \geq \gamma/2$} \\
+0 & \mbox{otherwise}
+\end{array}
+\right.
+$$
+With probability $\geq 1-\delta$, all bias estimates $\yh(B)$, for $B \in \B$, are $\gamma$-accurate.
+\label{cor:accurate-bias-estimates}
+\end{cor}
+\begin{proof}
+By the choice of $k$, we have from Lemma~\ref{lemma:large-deviation-bounds} that 
+$| \widehat{\eta}(B) - \eta_X(B) | < \gamma/2$
+for all $B \in \B$.
+\end{proof}
+
+\subsection{Proof of Lemma~\ref{lemma:boundary}}
+
+For part (a), note that some $B_o \in \B_{L_1(x)}(x)$ has significant bias towards the correct label $s(x)$, as does any ball $B \in \B(x)$ contained within it. For $\ell \geq L_1(x)$, the set $\{B \in \B_{\leq \ell(x)}: X_{B} \subseteq X_{B_o}\}$ is nonempty (it contains $B_o$); pick any minimal ball $B$ within it. Then $\yh(B) = s(x)$ and thus $s(x) \in \PL_\ell(x)$.
+
+For (b), take any $\ell \geq L_2(x)$. Consider any $B \in \B_{\leq \ell}(x)$ for which $s(x) \cdot \eta_X(B) < -b_1$. By definition of $L_2(x)$, this $B$ must lie in $B_{< L_2(x)}(x)$, and moreover there must exist $B' \in \B_{\leq L_2(x)}(x) \subset \B_{\leq \ell}(x)$ with $X_{B'} \subset X_B$ and $s(x) \cdot \eta_X(B') \geq -b_1$. Thus, any minimal $B \in \B_{\leq \ell}(x)$ has $\yh(B) \in \{0, s(x)\}$; whereupon $-s(x) \not\in \PL_\ell(x)$.
+
+\subsection{Proof of Lemma~\ref{lemma:focused}}
+
+Let $\overline{U}_\ell$ denote the set of all points that are ever (in any round of sampling) in the uncertainty set at level $\ell$. From Lemma~\ref{lemma:boundary}(b), we see that any $x$ with $L_2(x) < \ell$ has $\yh_{\ell-1}(x) \neq \ !$ and thus never makes it into the uncertainty set at level $\ell$. In short,
+\begin{equation}
+\overline{U}_{\ell} \subset \{x \in X: L_2(x) \geq \ell\}.
+\label{eq:uncertainty}
+\end{equation}
+
+We see from the {\tt Focused-query} subroutine (Figure~\ref{alg:sampling}) that all focused samples at level $\ell$ lie in
+$$
+\bigcup_{x \in \overline{U}_\ell} \bigcup_{B \in \B_\ell(x)} \{z \in X_B: T_z \leq \tau_\ell \}
+\ 
+\subset 
+\ 
+\bigcup_{x \in X: L_2(x) \geq \ell} \bigcup_{B \in \B_\ell(x)} \{z \in X_B: T_z \leq \tau_\ell \}
+\ 
+=
+\ 
+\{z \in \Delta_\ell: T_z \leq \tau_\ell \}.
+$$
+
+\subsection{Proof of Theorem~\ref{thm:label-complexity}}
+
+We start by showing that various subsets of interest contain roughly the expected number of points at each level.
+\begin{lemma}
+Pick any $0 < \ell_o \leq \lg (n/2k)$. With probability at least $1-2(\ell_o+1)e^{-k/3}$, the following hold for all levels $0 \leq \ell \leq \ell_o$.
+\begin{enumerate}
+\item[(a)] $|\{x \in X: T_x \leq \tau_\ell\}| < 2 n \tau_\ell$.
+\item[(b)] If $\Delta_\ell \neq \emptyset$ then $|\{x \in \Delta_{\ell}: T_x \leq \tau_\ell\}| < 2 |\Delta_\ell| \tau_\ell$.
+\end{enumerate}
+\label{lemma:level-distribution}
+\end{lemma}
+\begin{proof} 
+Pick any subset $S \subset X$ and let $m = |S|$. Then $|\{x \in S: T_x \leq \tau_\ell\}|$ has a $\mbox{binomial}(m, \tau_\ell)$ distribution with expectation $m \tau_\ell$. The probability that it is greater than or equal to twice its expected value is, by a multiplicative Chernoff bound, at most $e^{-m \tau_{\ell}/3}$, which is $\leq e^{-k/3}$ as long as $m \tau_\ell \geq k$.
+
+Both parts follow from this principle; and we take a union bound over all $\ell_o + 1$ levels. For (b), we need to check that $|\Delta_\ell| \tau_\ell \geq k$. To see this, observe from the definition (\ref{eq:sampling-region}) of $\Delta_\ell$ that if it is non-empty, then it contains $X_B$ for at least one ball $B \in \B_\ell$, and every such ball has at least $n/2^{\ell+1}$ points. Combining this with the definition (\ref{eq:threshold-ell}) of $\tau_\ell$ yields $|\Delta_\ell| \tau_\ell \geq k$.
+\end{proof}
+
+We now begin on the proof of Theorem~\ref{thm:label-complexity}.
+
+Denote the first $m/2$ queries by {\it phase one} and the second $m/2$ by {\it phase two}. We will analyze the effect of background sampling in phase one and focused sampling in phase two. We start with the former.
+
+Of the $m/2$ queries in phase one, at least $m/4$ will be background samples. Therefore the $m/4$ points with lowest $T_x$ values are guaranteed to be queried.
+
+Now, for $\ell_1$ as defined, we have from (\ref{eq:threshold-ell}) that $\tau_{\ell_1} \leq m/8n$ and thus from Lemma~\ref{lemma:level-distribution}(a) that at most $m/4$ points in $X$ satisfy $T_x \leq \tau_{\ell_1}$. Therefore all such points are queried in phase one, and all label-estimates $\{\yh_{\ell_1}(x): x \in X\}$ are set.
+
+It then follows from Lemma~\ref{lemma:boundary}(a) that the following hold for any $x \in X$ with $L_1(x) \leq \ell_1$:
+\begin{enumerate}
+\item[(a)] By the end of phase one, $\yh_{\ell_1}(x) \in \{g^*(x), !\}$.
+\item[(b)] For any $\ell > \ell_1$, when $\yh_\ell(x)$ becomes available, it lies in $\{g^*(x), !\}$.
+\item[(c)] If $x$ ever leaves the combined uncertainty region $U = \cup_\ell U_\ell$ during phase two, then its final label as defined in (\ref{eq:final-label}) is henceforth always $\yh(x) = g^*(x)$.
+\end{enumerate}
+
+Now let's move on to phase two. Let $A = \{x \in X: L_1(x) \leq \ell_1, L_2(x) \leq \ell_2\}$. We will show that every point in $A$ must leave the uncertainty region $U$ at some time during phase two. From (c), we can conclude that all these points have their final labels set correctly, once and for all.
+
+We will break the argument into two cases. 
+
+{\it Case 1:} Fewer than $m/4$ focused queries are made in phase two. This can only happen if some round of sampling has an empty uncertainty set, meaning that all of $A$ has left $U$ at that point.
+
+{\it Case 2:} A full $m/4$ focused queries are made in phase two. By the analysis of phase one, none of these queries can be at level $\leq \ell_1$ and by Lemma~\ref{lemma:focused}, the total number of possible focused queries at levels $\ell_1+1$ through $\ell_2$ inclusive is at most
+$$\sum_{\ell=\ell_1+1}^{\ell_2} |\{z \in \Delta_{\ell}: T_z \leq \tau_\ell \}| 
+\ < \ 
+\sum_{\ell=\ell_1+1}^{\ell_2} 2 |\Delta_{\ell}| \tau_\ell
+\ \leq \ 
+\frac{m}{4} ,
+$$
+where the first inequality is from Lemma~\ref{lemma:level-distribution}(b). Thus at least one query in phase two must be at level $\ell_2 +1$. When this query is made, every $U_\ell$ with $\ell \leq \ell_2$ must be empty and thus all of $A$ must have left the uncertainty region; recall from (\ref{eq:uncertainty}) that no $x \in A$ can be part of $U_\ell$ for $\ell > \ell_2 \geq L_2(x)$. 
+
+Thus every $x \in A$ must leave the uncertainty region at some point in phase two, and their final labels are subsequently set correctly.
+
+\subsection{Proof of Theorem~\ref{thm:oned-massart}}
+
+We begin with bounds on the $L_1$ and $L_2$ levels for each point.
+\begin{lemma}
+Pick any $x \in \X$; suppose $x \in I_j$.
+\begin{enumerate}
+\item[(a)] Let $n_j = |X \cap I_j|$. Then $L_1(x) \leq \lg (n/n_j)$.
+\item[(b)] Let $r(x)$ be the minimum number of data points that lie between $x$ and a boundary point, counting $x$ as well; this is either the number of points in the left-interval $(\lambda_{j-1},x]$ (if $j > 1$) or the right-interval $[x, \lambda_j)$ (if $j < p$), whichever is smaller. Then $L_2(x) \leq \lg (n/r(x))$.
+\end{enumerate}
+\label{lemma:oned-massart-L}
+\end{lemma}
+\begin{proof}
+For (a), notice first that $I_j \in \B_{\ell}(x)$ for $\ell = \lceil (\lg n/n_j) - 1 \rceil$. Moreover, $s(I_j) \cdot \eta_X(I_j) > \gamma \geq b_2$. Thus $I_j$ belongs to $\B_\ell(x)$ and is strongly biased towards the correct label. This strong bias also holds for any subset of $I_j$. 
+
+For (b), consider any $\ell \geq \lg (n/r(x))$. Any $B \in \B(x)$ with $\mbox{sign}(\eta_X(B)) \neq s(I_j)$ must contain either the entire left-interval $(\lambda_{j-1},x]$ or the entire right-interval $[x, \lambda_j)$, and thus has at least $r(x)$ points, which means that it is too large to be in $\B_\ell$. Thus all intervals $B \in \B_{\geq \ell}(x)$ have $s(I_j) \cdot \eta_X(B) > 0$. Also, for any interval $B \in \B_{<\ell}(x)$ there is some $B' \in \B_{\ell}(x)$ that is strictly contained within it.
+\end{proof}
+
+With $L_1(x)$ and $L_2(x)$ under control, it is easy to bound the size of the focused query region $\Delta_\ell$ at each level.
+\begin{lemma}
+For any $\ell \geq 0$, let $\Delta_\ell$ denote the focused querying region at level $\ell$, as defined in (\ref{eq:sampling-region}). Then $|\Delta_\ell| \leq (p-1)n/2^{\ell-2}$.
+\label{lemma:oned-massart-query-region}
+\end{lemma}
+
+\begin{proof}
+We have
+\begin{align*}
+\Delta_\ell 
+&= \bigcup_{x \in X: L_2(x) \geq \ell} \bigcup_{B \in \B_{\ell}(x)} (B \cap X) \\
+&\subset \bigcup_{x \in X: r(x) \leq n/2^\ell} \bigcup_{B \ni x: |B \cap X| < n/2^\ell} (B \cap X) 
+.
+\end{align*}
+This includes at most $n/2^{\ell-1}$ points from $X$ on either side of each boundary point $\lambda_j$.
+\end{proof}
+
+We are now ready to establish Theorem~\ref{thm:oned-massart}.
+
+Setting $k$ to $O((1/\gamma^2) \ln (n/\delta))$ satisfies the requirements of Lemma~\ref{lemma:accurate-bias-estimates}. Here we are using the fact that although $\B$ is infinite, we need only consider $O(n^2)$ distinct intervals since $|X| = n$.
+
+Next, using Lemma~\ref{lemma:oned-massart-query-region}, we have that for any integers $0 \leq \ell_1 < \ell_2$,
+$$ \sum_{\ell = \ell_1+1}^{\ell_2} |\Delta_\ell| \tau_\ell
+\ \leq \ 
+\sum_{\ell = \ell_1+1}^{\ell_2} \frac{(p-1) n}{2^{\ell-2}} \cdot \frac{2^{\ell+2}k}{n}
+\ = \ 
+16(p-1)k (\ell_2 - \ell_1).
+$$
+We can then apply Theorem~\ref{thm:label-complexity} to conclude that $m$ query points are enough to correctly classify all $x \in X$ with $L_1(x) \leq \ell_1$ and $L_2(x) \leq \ell_2$, for
+\begin{align*}
+\ell_1
+&= 
+\left\lfloor \lg \frac{m}{32k} \right\rfloor \\
+\ell_2
+&=
+\min \left( \ell_1 + \frac{m}{128 k(p-1)}, \ \lg \frac{n}{2k} \right)
+\end{align*}
+Using Lemma~\ref{lemma:oned-massart-L}, we have that in every target interval $I_j$ with $n_j/n = \Omega(k/m)$, all but $n \cdot 2^{-\ell_2-1}$ points will be correctly classified. For large enough $m$, this means that the fraction of misclassified or unclassified points in $X$ will be at most $\epsilon$ after $O(k(p-1) \log ((p-1)/\epsilon))$ queries, apart from the $2k$ points nearest the boundaries, which will remain unclassified.
+
+\subsection{Proof of Theorem~\ref{thm:oned-monotonic}}
+
+We begin by bounding the critical levels $L_1$ and $L_2$ for points in $X$.
+\begin{lemma}
+Pick any $x \in [0, 1]$.
+\begin{enumerate}
+\item[(a)] Define $n^- = |[0,\lambda_L] \cap X|$ and $n^+ = |[\lambda_R,1] \cap X|$. Then
+$$
+L_1(x)
+\leq
+\left\{
+\begin{array}{ll}
+\lg (n/n^+) & \mbox{if $x \geq \lambda_R$} \\
+\lg (n/n^-) & \mbox{if $x \leq \lambda_L$}
+\end{array}
+\right.
+$$
+\item[(b)] Let $r(x)$ be the number of points between $x$ and the boundary point $\lambda$, counting $x$ itself. That is, $r(x) = |[x,\lambda) \cap X|$ if $x < \lambda$, or $|(\lambda, x] \cap X|$ if $x > \lambda$. Then $L_2(x) \leq \lg (n/r(x))$.
+\end{enumerate}
+\label{lemma:oned-monotonic-L}
+\end{lemma}
+\begin{proof}
+For (a), take any $x \geq \lambda_R$ (the other case is similar). The interval $B = [\lambda,1]$ lies in $\B_\ell(x)$ for $\ell = \lceil \lg (n/n^+) - 1 \rceil$ and has $\eta_X(B) \geq b_2$. Furthermore, any $B' \subset B$ also has $\eta_X(B') \geq b_2$. 
+
+For (b), take $x \geq \lambda_R$ and $\ell \geq \lg (n/r(x))$. Any $B \in \B_\ell(x)$ contains $< n/2^\ell \leq r(x)$ points and thus cannot possibly extend to the other side of the boundary. It follows that every $B \in \B_{\geq \ell}(x)$ has $\eta_X(B) \geq 0$. Moreover, any interval $B'$ that does extend to the other side of the boundary contains $B' \in \B_{\ell}(x)$ that is entirely on the same side as $x$.
+\end{proof}
+
+We can now bound the size of the query region at each level, in much the same way as we did for our previous one-dimensional example.
+\begin{lemma}
+For any $\ell \geq 0$, let $\Delta_\ell$ denote the focused querying region at level $\ell$, as defined in (\ref{eq:sampling-region}). Then $|\Delta_\ell| \leq 4n/2^\ell$.
+\label{lemma:oned-monotonic-query-region}
+\end{lemma}
+
+\begin{proof}
+The bound on $L_2(x)$ from Lemma~\ref{lemma:oned-monotonic-L} is the same as in our earlier one-dimensional example. We can use the same proof as in Lemma~\ref{lemma:oned-massart-query-region}, with $p=2$, to get the stated bound.
+\end{proof}
+
+We are now ready for the proof of Theorem~\ref{thm:oned-monotonic}.
+
+First observe that for any $\ell_1 \leq \ell_2$, we have from Lemma~\ref{lemma:oned-monotonic-query-region} that
+$$ \sum_{\ell=\ell_1+1}^{\ell_2} |\Delta_\ell| \tau_\ell 
+\ \leq \ \sum_{\ell=\ell_1+1}^{\ell_2} \frac{4n}{2^\ell} \cdot \frac{2^{\ell+2} k}{n} 
+\ = \ 16k(\ell_2-\ell_1).$$
+Now, let's define
+$$ \ell_1 = \left\lfloor \lg \frac{m}{32k} \right\rfloor, 
+\ \ \ \ell_2 = \min \left( \ell_1 + \frac{m}{128k}, \ \ \lg \frac{n}{2k} \right).$$
+Then for any $x \in [0, \lambda_L] \cup [\lambda_R,1]$, we have
+$$ \ell_1 = \left\lfloor \lg \frac{m}{32k} \right\rfloor 
+\ \geq \ 
+\lg \frac{m}{64k}
+\ \geq \ 
+\lg \frac{n}{\min(n^+,n^-)}
+\ \geq \ 
+L_1(x)$$
+and, if $\min(r^+, r^-) \geq 2k$,
+$$ \ell_2 
+\ = \ \ell_1 + \frac{m}{128k} 
+\ \geq \ \lg \frac{m}{64k} + \lg \frac{\min(n^+,n^-)}{\min(r^+,r^-)} 
+\ \geq \ \lg \frac{m}{64k} + \lg \frac{64kn/m}{\min(r^+,r^-)} 
+\ = \ \lg \frac{n}{\min(r^+,r^-)}
+\ \geq \ 
+L_2(x).
+$$
+We get the algorithmic guarantee by applying Theorem~\ref{thm:label-complexity}. 
+
+\section{Technicalities: distributional setting}
+
+In the distributional setting, $X$ is drawn i.i.d.\ from a distribution $\mu$ on $\X \subset \R^d$.  We assume $\mu$ is absolutely continuous with respect to the Lebesgue measure on $\R^d$ and thus admits a density. Take $\B$ to consist of all open balls $B(x,r) = \{z: \|z-x\| < r\}$, with $\B(x)$ being balls that contain $x$.
+
+\subsection{Sampling level and probability mass}
+
+To begin with, we relate the number of points in a ball $B \in \B$ (and thus the level of the ball) to its probability mass under the marginal distribution.
+\begin{lemma}
+With probability at least $1-\delta$, for all $B \in \B$ with $n \mu(B) \geq 12 \ln (2|\B|/\delta)$, we have
+$$ \frac{\mu(B)}{2} \leq \frac{|X_B|}{n} \leq 2 \mu(B) .$$
+\label{lemma:ball-size-bounds}
+\end{lemma}
+\begin{proof}
+It is an immediate consequence of the multiplicative Chernoff bound that with probability at least $1-\delta$, for all $B \in \B$,
+$$ \frac{|X_B|}{n} = \mu(B) \left(1 \pm \sqrt{\frac{3}{n \mu(B)} \ln \frac{2|\B|}{\delta}} \right) .$$
+\end{proof}
+
+Henceforth assume that this high-probability event holds. Next, we will see that balls of probability mass $p$ belong to level $\ell \approx \lg (1/p)$.
+\begin{lemma}
+For any level $\ell \geq 0$ and any $B \in \B_{\ell}$,
+$$ \left\lceil \lg \frac{1}{\mu(B)} \right\rceil -2 \leq \ell \leq  \left\lceil \lg \frac{1}{\mu(B)} \right\rceil.$$
+\label{lemma:mass-vs-level}
+\end{lemma}
+\begin{proof}
+Recall the definition of level $\ell$:
+$$ B \in \B_\ell 
+\ \Longleftrightarrow \ \frac{n}{2^{\ell+1}} \leq |X_B| < \frac{n}{2^\ell} 
+\ \Longleftrightarrow \ 2^\ell < \frac{n}{|X_B|} \leq 2^{\ell + 1}.$$
+By Lemma~\ref{lemma:ball-size-bounds}, 
+$$ \frac{1}{2 \mu(B)} \leq \frac{n}{|X_B|} \leq \frac{2}{\mu(B)}.$$
+Thus we must have $2^{\ell} < 2/\mu(B)$ and $1/(2 \mu(B)) \leq 2^{\ell+1}$. These translate into the stated bounds on $\ell$.
+\end{proof}
+
+\subsection{Proof of Lemma~\ref{lemma:L2-bound}}
+
+Let $p = \dist(x, \X^{-s(x)})$. If $p = 0$, the statement is vacuous, so assume $p > 0$.
+
+Consider $\ell = \lceil \lg (1/p) \rceil + 1$. For any $B \in \B_{\geq \ell}(x)$, we have $\mu(B) \leq 2|X_B|/n < 2/2^\ell \leq p$, using Lemma~\ref{lemma:ball-size-bounds}, the definition of sampling levels, and the definition of $\ell$, in that order. It follows that $B$ does not intersect $\X^{-s(x)}$, whereupon $s(x) \cdot \eta_X(B) \geq 0 \geq -b_1$.
+
+Next, pick any $B \in \B_{\leq \ell}(x)$ with $s(x) \cdot \eta_X(B) < -b_1$. Thus $B$ must intersect $\X^{-s(x)}$. We will show that there exists $B' \in \B_{\leq \ell}(x)$ such that $B' \subset B$ and $B'$ does not intersect $\X^{-s(x)}$; whereupon $s(x) \cdot \eta_X(B') \geq -b_1$. Indeed, take $B' \in \B(x)$ to be a subset of $B$ of mass $p-\epsilon$ for some very small $\epsilon$; we can do this because of the absolute continuity of $\mu$. Then $B'$ does not touch $\X^{-s(x)}$ and by Lemma~\ref{lemma:mass-vs-level}, it lies at level $\leq \ell$.
+
+\subsection{Proof of Lemma~\ref{lemma:delta-continuous}}
+
+Recall from (\ref{eq:sampling-region}) that
+$$ \Delta_\ell = \bigcup_{x \in X: L_2(x) \geq \ell} \bigcup_{B \in \B_{\ell}(x)} X_B .$$
+Consider any $z \in \Delta_\ell$. Then there exists $x \in \X$ with $L_2(x) \geq \ell$ and $B \in \B_\ell(x)$ such that $z \in B$. Now, $B \in \B_\ell(x)$ implies $|X_B|/n < 1/2^\ell$ and so (by Lemma~\ref{lemma:ball-size-bounds}) $\mu(B) < 2/2^\ell$. We will show that $x \in \partial_{4/2^\ell}$ and thus $z \in \partial_{4/2^\ell, 2/2^{\ell}}$.
+
+Since $L_2(x) \geq \ell$, we have from Lemma~\ref{lemma:L2-bound} that
+$$ \ell 
+\ \leq \ \left\lceil \lg \frac{1}{\dist(x,\X^{-s(x)})} \right\rceil + 1 
+\ \leq \ 
+\lg \frac{1}{\dist(x,\X^{-s(x)})} + 2 .
+$$
+Thus $\dist(x, \X^{-s(x)}) \leq 1/2^{\ell-2}$ and $x \in \partial_{4/2^\ell}$.
+
+\subsection{Proof of Theorem~\ref{thm:label-complexity-dist}}
+
+We will need to relate the size of the query region $\Delta_\ell$ to the probability mass of the corresponding second-order boundary. For this, we provide an analog of Lemma~\ref{lemma:level-distribution} for the distributional setting.
+\begin{lemma}
+Pick any $0 < \ell_o \leq \lg (n/2k)$. With probability at least $1-2(\ell_o+1)e^{-k/3}$, the following hold for all levels $0 \leq \ell \leq \ell_o$.
+\begin{enumerate}
+\item[(a)] $|\{x \in X: T_x \leq \tau_\ell\}| \leq 2 n \tau_\ell$.
+\item[(b)] $|\{x \in \Delta_{\ell}: T_x \leq \tau_\ell\}| \leq 2 n \mu(\partial_{4/2^\ell, 2/2^\ell}) \tau_\ell$.
+\end{enumerate}
+\label{lemma:level-distribution-dist}
+\end{lemma}
+\begin{proof} 
+Part (a) is as in Lemma~\ref{lemma:level-distribution}. 
+
+For (b), pick any subset $S \subset \X$. If $X$ consists of $n$ independent draws from $\mu$, then $|\{x \in S: T_x \leq \tau_\ell\}|$ has a $\mbox{binomial}(n, \mu(S) \tau_\ell)$ distribution with expectation $n \mu(S) \tau_\ell$. The probability that it is more than twice its expected value is, by a multiplicative Chernoff bound, at most $e^{-n \mu(S) \tau_\ell/3}$. We will apply this to the various sets $S = \partial_{4/2^\ell, 2/2^\ell}$ and take a union bound over them. In each application, we will also see that $n \mu(S) \tau_\ell \geq k$.
+
+Pick any $\ell \leq \lg (n/2k)$. If $\partial_{4/2^\ell, 2/2^\ell} = \emptyset$, then the statement in (b) is trivially true given Lemma~\ref{lemma:delta-continuous}. So assume this is not the case. Writing $p = 4/2^\ell$, we need to check that $\mu(\partial_{p, p/2}) \tau_\ell \geq k/n$, or equivalently, $\mu(\partial_{p, p/2}) \geq \max(1/2^{\ell+2}, k/n)$. Now, $\partial_{p,p/2} \neq \emptyset \Longrightarrow \partial_p \neq \emptyset$, which means that there exists some ball $B$ of probability mass $<p$ that straddles the decision boundary, in the sense of touching both $\X^+$ and $\X^-$. By absolute continuity of $\mu$, we can grow this ball to probability mass arbitrarily close to $p$ while retaining the boundary-crossing property. Thus $\mu(\partial_p) \geq p$, whereupon $\mu(\partial_{p,p/2}) \geq p$ as well. The required conditions then follow from the value of $p$.
+\end{proof}
+
+With this in place, the proof of Theorem~\ref{thm:label-complexity-dist} follows that of Theorem~\ref{thm:label-complexity}; the only change is to use Lemma~\ref{lemma:level-distribution-dist}(b) in place of Lemma~\ref{lemma:level-distribution}(b).
+
+\subsection{Proof of Lemma~\ref{lemma:L1-bound}}
+
+Pick any $x \in X_\gamma$; apply (A1) to get $B \in \B(x)$ for which $\mu(B) \geq p_o$ and $B \subset \X^{s(x)}_\gamma$. By Lemma~\ref{lemma:mass-vs-level}, $B \in \B_\ell$ for $\ell \leq \lceil \lg (1/p_o) \rceil$. Now, $s(x) \cdot \eta_X(B) \geq \gamma$; moreover, for any $B' \in \B(x)$ with $X_{B'} \subset X_B$ we have $X_{B'} \subset \X^{s(x)}_\gamma$ and thus $s(x) \cdot \eta_X(B') \geq \gamma$ as well.
+
+\subsection{Proof of Theorem~\ref{thm:label-complexity-specific}}
+
+In this case, $\B$ is infinite, but by standard VC-dimension arguments there are effectively only $O(n^d)$ distinct balls $B$, in the sense of having different sets $X_B$. This governs the setting of $k$.
+
+First, define $\ell_1 = \lfloor \lg (m/32k) \rfloor$ and observe that by Lemma~\ref{lemma:L1-bound}, all points in $\X_\gamma$ have 
+$$ L_1(x) 
+\ \leq \ 
+\left\lceil \lg \frac{1}{p_o} \right\rceil
+\ \leq \ 
+\lg \frac{2}{p_o} 
+\ \leq \ 
+\lg \frac{m}{64k}
+\ \leq \ 
+\ell_1 .
+$$
+Next, pick  
+$$ \ell_2 = \left\lfloor \frac{1}{1-\sigma} \left( \lg \frac{m}{32k} + \lg \frac{2^{1-\sigma}-1}{C \cdot 2^{1+\sigma}} \right) \right\rfloor.$$
+The lower bound on $n$ ensures that this is at most $\lg (n/2k)$. Then,
+$$
+\sum_{\ell = \ell_1+1}^{\ell_2} 2^\ell \mu(\partial_{4/2^\ell, 2/2^\ell})
+\ \leq \ 
+C \sum_{\ell = \ell_1+1}^{\ell_2} 2^\ell \left( \frac{4}{2^\ell} \right)^\sigma 
+\ \leq \ 
+C \cdot 4^\sigma \cdot \frac{2^{1-\sigma}}{2^{1-\sigma}-1} \cdot 2^{(1-\sigma)\ell_2}
+\ \leq \ 
+\frac{m}{32k} .
+$$
+Applying Theorem~\ref{thm:label-complexity-dist}, we then see that all points in $\X_\gamma$ with $L_2(x) \leq \ell_2$ will be correctly classified. Any remaining point $x \in \X_\gamma$ has $L_2(x) > \ell_2$ and thus (by Lemma~\ref{lemma:L2-bound})
+$$ \left\lceil \lg \frac{1}{\dist(x, \X^{-s(x)})} \right\rceil + 1 > \ell_2 
+\ \Longrightarrow \ 
+\dist(x, \X^{-s(x)}) < \frac{4}{2^{\ell_2}} \leq C'' \left( \frac{k}{m} \right)^{1/(1-\sigma)} 
+$$
+for some constant $C''$. Under (A2), which implies the same bound on $\mu(\partial_p)$, the fraction of such points is $\leq C' (k/m)^{\sigma/(1-\sigma)}$ for constant $C'$.
 
 \end{document}
