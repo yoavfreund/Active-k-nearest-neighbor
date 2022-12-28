@@ -1,0 +1,52 @@
+\message{ !name(active-knn.tex)}\documentclass{article}
+\usepackage{fullpage}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{natbib}
+
+\def\R{{\mathbb{R}}}
+\def\pr{{\rm Pr}}
+\def\E{{\mathbb E}}
+\def\X{{\mathcal X}}
+\def\Y{{\mathcal Y}}
+\def\H{{\mathcal H}}
+\def\G{{\mathcal G}}
+\def\B{{\mathcal B}}
+\def\yh{{\widehat{y}}}
+\def\bias{{\rm bias}}
+\def\supp{{\rm supp}}
+\def\dist{{\rm dist}}
+\def\sign{{\rm sign}}
+\def\vol{{\rm vol}}
+\def\PL{{\mbox{\rm PL}}}
+
+\newtheorem{thm}{Theorem}
+\newtheorem{lemma}[thm]{Lemma}
+\newtheorem{cor}[thm]{Corollary}
+\newtheorem{claim}[thm]{Claim}
+\newtheorem{defn}[thm]{Definition}
+\newtheorem{assump}{Assumption}
+\newtheorem{open}{Open problem}
+\newenvironment{proof}{\noindent {\sc Proof:}}{$\Box$ \medskip}
+
+\newcommand{\yoav}[1]{\comment{cyan}{Yoav}{#1}}
+\newcommand{\sanjoy}[1]{\comment{blue}{Sanjoy}{#1}}
+
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+\title{Active learning using region-based sampling}
+
+\begin{document}
+
+\message{ !name(active-knn.tex) !offset(219) }
+
+\begin{equation}
+  k =  \lceil (8c_1/\gamma)^2\rceil
+\message{ !name(active-knn.tex) !offset(934) }
+
+\end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:

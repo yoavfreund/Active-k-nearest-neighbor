@@ -253,30 +253,35 @@ We now analyze the active learning procedure in a setting where $X \subset \X$ i
 
 \subsection{Accuracy of bias estimates}
 
-We'll start with a uniform guarantee on the bias estimates for all balls $B \in \B$. Take $0 < \delta < 1$ to be a predefined constant, and define
+Fix the set of balls $\B$. We start with a uniform guarantee on the
+bias estimates for all balls $B \in \B$.  Let $0 < \delta < 1$ to be a
+predefined confidence parameter, and define the constants $c,k$ as
+follows:
 \begin{equation}
-c_1 = \sqrt{3 \ln \frac{4|\B|}{\delta}} .
+c = \sqrt{3 \ln \frac{4|\B|}{\delta}} .
 \label{eq:c1}
 \end{equation}
-Recall from Figure~\ref{alg:sampling} that for any level $\ell$, threshold $\tau_\ell$ is given by
+and
 \begin{equation}
-\tau_\ell = \min \left( \frac{2^{\ell+2}k}{n}, \ 1 \right)
-\label{eq:threshold-ell}
+  k =  \lceil (8c/\gamma)^2\rceil
 \end{equation}
-The choice of $k$ is determined by the following result, proved in the appendix.
+This choice of $k$ is determined by the following result, proved in the appendix.
 \begin{lemma}
-Suppose that $k \geq (8c_1/\gamma)^2$ where $c_1$ is given in (\ref{eq:c1}). 
+Suppose that $k \geq (8c/\gamma)^2$ where $c$ is given in (\ref{eq:c1}). 
 For each $B \in \B$, let $\yh(B)$ be defined as in Figure~\ref{alg:bias-estimate}. Then with probability $\geq 1-\delta$, all the $\yh(B)$, for $B \in \B$, are $\gamma$-accurate.
 \label{lemma:accurate-bias-estimates}
 \end{lemma}
 
-In what follows, we will assume that this $(1-\delta)$-probability event holds.
+In what follows, we will assume that for all  $B \in \B$, $\yh(B)$ is $\gamma$-accurate.
 
-\subsection{Mind changes}
+
+\subsection{Critical levels}
 
 The label assigned to a data point $x$ at level $\ell$, which we denote $\yh_\ell(x)$, might change as $\ell$ increases; it may flip between $+1$ and $-1$ a few times, with stretches of $0$ or $!$ in between. This $\yh_\ell(x)$ is governed by $\PL_\ell(x) \subset \{-1,+1\}$, the ``possible labels'' for $x$ given the information from balls at levels $0$ through $\ell$. 
 
-The quantities $\yh_\ell(x)$ and $\PL_\ell(x)$ depend upon the random choices of the querying algorithm. Nevertheless, it is possible to define two critical levels for each $x$: a level $L_1(x)$ by which $\PL_\ell(x)$ will reliably contain the correct label of $x$, and a level $L_2(x)$ by which $\PL_\ell(x)$ will reliably omit the wrong label.
+The quantities $\yh_\ell(x)$ and $\PL_\ell(x)$ depend upon the random choices of the querying algorithm and might not allow
+
+Nevertheless, it is possible to define two critical levels for each $x$: a level $L_1(x)$ by which $\PL_\ell(x)$ will reliably contain the correct label of $x$, and a level $L_2(x)$ by which $\PL_\ell(x)$ will reliably omit the wrong label.
 
 \begin{defn}
 Pick any $x \in X$ with $\eta(x) \neq 0$ and let $s(x) = \sign(\eta(x))$ be its Bayes-optimal label. We define $L_1(x)$ to be the smallest level $\ell$ such that:
@@ -306,13 +311,27 @@ Pick any $x \in X$ with $\eta(x) \neq 0$ and let $s(x) \in \{+1,-1\}$ denote its
 
 \subsection{Boundary sets and label complexity}
 
-For any level $\ell$, define the \emph{boundary set} at that level to be
+A common intuition regarding active learning is that the label of
+instances far from th decision boundary can be determined after fewer
+queries than those that are close to the boundary. We follow this
+intuition to define aboundary sets.
+
+Fix a point $x$ As the level $\ell$ increases, the algorithm considers
+smaller balls $\B_\ell(x)$. Intuitively, if $x$ is far from the
+decision boundary, then for a sufficiently large $\ell$, $\yh(B)$ has
+the same sign for $\forall B \in \B_\ell(x)$ and we do not need to
+query the label of $x$. Based on this intuition we define the boundary
+
+\begin{defn}
+For any level $\ell$, define the \emph{boundary set} at level $\ell$ to be
 \begin{equation}
 \Delta_\ell 
 = \bigcup_{x \in X: L_2(x) \geq \ell} \bigcup_{B \in \B_{\ell}(x)} X_B 
 .
 \label{eq:sampling-region}
 \end{equation}
+\end{defn}
+
 It can be shown that all focused samples at level $\ell$ will lie in this set.
 \begin{lemma}
 All focused samples at level $\ell$ lie in $\{z \in \Delta_\ell: T_z \leq \tau_\ell \}$.
@@ -491,8 +510,8 @@ fraction of $X$.
 
 We'll now see how (A1) and (A2) are consequences of somewhat more commonplace assumptions on data distributions. The first three are standard in nonparametric estimation while the fourth is common in computational geometry.
 \begin{enumerate}
-\item[(C1)] [Strong density condition] Distribution $\mu$ on $\X \subset \R^d$ admits a density that is bounded below and above: there exist constants $c_o, c_1 > 0$ such that for all balls $B \in \B$,
-$$ c_o \vol(B) \leq \mu(B) \leq c_1 \vol(B) ,$$
+\item[(C1)] [Strong density condition] Distribution $\mu$ on $\X \subset \R^d$ admits a density that is bounded below and above: there exist constants $c_o, c > 0$ such that for all balls $B \in \B$,
+$$ c_o \vol(B) \leq \mu(B) \leq c \vol(B) ,$$
 where $\vol(\cdot)$ is $d$-dimensional volume.
 \item[(C2)] [Holder-smoothness of conditional probability function] There exist constants $L, \alpha$ such that
 $$ |\eta(x) - \eta(x')| \ \leq \ L \|x - x'\|^\alpha$$
@@ -546,18 +565,18 @@ If $qm \geq k + \sqrt{6k \ln (4/\delta)}$, with probability at least $1-\delta$,
 \label{lemma:large-deviation-discrete}
 \end{lemma}
 \begin{proof}
-Let's start with (a). Define $c_1 = \sqrt{3 \ln (4/\delta)}$. We'll take $qm = k + \sqrt{6k \ln (4/\delta)} = k + c_1 \sqrt{2k}$ since this is the worst case. By assumption, $k \geq 2c_1^2$ and thus $qm \leq 2k$.
+Let's start with (a). Define $c = \sqrt{3 \ln (4/\delta)}$. We'll take $qm = k + \sqrt{6k \ln (4/\delta)} = k + c \sqrt{2k}$ since this is the worst case. By assumption, $k \geq 2c^2$ and thus $qm \leq 2k$.
 
 Now, $N$ has a binomial($m,q$) distribution. By a multiplicative Chernoff bound, for $0 < \epsilon < 1$, we have
 \begin{align*}
 \pr(N \geq qm(1+\epsilon)) &\leq e^{-qm\epsilon^2/3} \\
 \pr(N \leq qm(1-\epsilon)) &\leq e^{-qm\epsilon^2/2}
 \end{align*}
-Take $\epsilon = c_1/\sqrt{qm}$; by the lower bound on $k$, we have $\epsilon \leq 1/2$. Recalling the choice of $c_1$, we see that with probability at least $1-\delta/2$, we get 
+Take $\epsilon = c/\sqrt{qm}$; by the lower bound on $k$, we have $\epsilon \leq 1/2$. Recalling the choice of $c$, we see that with probability at least $1-\delta/2$, we get 
 $$(1-\epsilon) qm < N < (1+\epsilon) qm .$$
-The lower bound implies $N > qm(1-\epsilon) = qm - c_1\sqrt{qm} = k + c_1 \sqrt{2k} - c_1 \sqrt{qm} \geq k$.
+The lower bound implies $N > qm(1-\epsilon) = qm - c\sqrt{qm} = k + c \sqrt{2k} - c \sqrt{qm} \geq k$.
 
-For (b), define $C_1, \ldots, C_m \in \{0,1\}$ as random variables indicating whether the corresponding points were selected; that is, $C_i = {\bf 1}(\mbox{$x_i$ was selected})$. The sum of the obtained labels is then $S = C_1 Y_1 + \cdots + C_m Y_m$. Notice that these $C_iY_i \in \{-1,0,1\}$ are independent with $\E[C_iY_i] = q \eta(x_i)$ and $\E[(C_iY_i)^2] = \E[C_i] = q$. Thus their sum $S$ has expectation
+For (b), define $c, \ldots, C_m \in \{0,1\}$ as random variables indicating whether the corresponding points were selected; that is, $C_i = {\bf 1}(\mbox{$x_i$ was selected})$. The sum of the obtained labels is then $S = c Y_1 + \cdots + C_m Y_m$. Notice that these $C_iY_i \in \{-1,0,1\}$ are independent with $\E[C_iY_i] = q \eta(x_i)$ and $\E[(C_iY_i)^2] = \E[C_i] = q$. Thus their sum $S$ has expectation
 $$ \E [S] = \sum_{i=1}^m \E[C_i Y_i] = \sum_{i=1}^m q \eta(x_i) = qm \eta_o $$
 and variance
 $$ \mbox{var}(S) = \sum_{i=1}^m \mbox{var}(C_iY_i) \leq qm .$$
@@ -626,14 +645,21 @@ $$ \eta(x) = \E[y | x].$$
 For any $B \in \B$ with $X_B \neq \emptyset$, let $\eta_X(B)$ be the average $\eta$-value of the points in $B$, that is,
 $$ \eta_X(B) = \frac{1}{|X_B|} \sum_{x \in X_B} \eta(x) .$$
 
-Recall the definitions of the constant $c_1$ from (\ref{eq:c1}) and of the thresholds $\tau_\ell$ from (\ref{eq:threshold-ell}). For any $B \in \B_\ell$, define its \emph{query-set} to be $\Gamma(B) = \{z \in X_B: T_z \leq \tau_\ell\}$. We base our bias-estimate for $B$ on the labels of points in $\Gamma(B)$.
+Recall the definitions of the constant $c$ from (\ref{eq:c1}) and that for each level $\ell$:
+\begin{equation}
+\tau_\ell = \min \left( \frac{2^{\ell+2}k}{n}, \ 1 \right)
+\label{eq:threshold-ell}
+\end{equation}
+
+
+. For any $B \in \B_\ell$, define its \emph{query-set} to be $\Gamma(B) = \{z \in X_B: T_z \leq \tau_\ell\}$. We base our bias-estimate for $B$ on the labels of points in $\Gamma(B)$.
 
 \begin{lemma}
-Suppose $k \geq 2c_1^2$. With probability at least $1-\delta$, the following is true for all $B \in \B$ with $|X_B| \geq k$:
+Suppose $k \geq 2c^2$. With probability at least $1-\delta$, the following is true for all $B \in \B$ with $|X_B| \geq k$:
 \begin{enumerate}
 \item[(a)] The query set $\Gamma(B)$ has size at least $k$.
 \item[(b)] The average label on $\Gamma(B)$, call it $\widehat{\eta}(B)$, satisfies
-$$ \left| \widehat{\eta}(B) - \eta_X(B) \right| \leq \frac{4c_1}{\sqrt{k}}.$$
+$$ \left| \widehat{\eta}(B) - \eta_X(B) \right| \leq \frac{4c}{\sqrt{k}}.$$
 \end{enumerate}
 \label{lemma:large-deviation-bounds}
 \end{lemma}
@@ -643,7 +669,7 @@ These follow immediately by applying Lemma~\ref{lemma:large-deviation-discrete} 
 
 The following corollary of Lemma~\ref{lemma:large-deviation-bounds} is immediate.
 \begin{cor}
-Suppose that $k \geq (8c_1/\gamma)^2$. For each $B \in \B$, let $\widehat{\eta}(B)$ be the average label on the query-set $\Gamma(B)$, and define the bias-estimate $\yh(B)$ as follows:
+Suppose that $k \geq (8c/\gamma)^2$. For each $B \in \B$, let $\widehat{\eta}(B)$ be the average label on the query-set $\Gamma(B)$, and define the bias-estimate $\yh(B)$ as follows:
 $$ \yh(B)
 = 
 \left\{
@@ -974,3 +1000,8 @@ $$
 for some constant $C''$. Under (A2), which implies the same bound on $\mu(\partial_p)$, the fraction of such points is $\leq C' (k/m)^{\sigma/(1-\sigma)}$ for constant $C'$.
 
 \end{document}
+
+%%% Local Variables:
+%%% mode: latex
+%%% TeX-master: t
+%%% End:
