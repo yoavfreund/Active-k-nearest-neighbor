@@ -29,7 +29,8 @@
 \newtheorem{open}{Open problem}
 \newenvironment{proof}{\noindent {\sc Proof:}}{$\Box$ \medskip}
 
-\newcommand{\yoav}[1]{\comment{cyan}{Yoav}{#1}}
+\newcommand{\comment}[2]{ {\bf #1 :} #2}
+\newcommand{\yoav}[1]{\comment{Yoav}{#1}}
 \newcommand{\sanjoy}[1]{\comment{blue}{Sanjoy}{#1}}
 
 \DeclareMathOperator*{\argmax}{arg\,max}
@@ -40,9 +41,11 @@
 
 \maketitle
 
-\section{Setup}
+\section{Introduction}
 
-In our model, all instances lie in a metric space $(\X, d)$. Each $x \in \X$ has an associated label $y \in \Y = \{-1,+1\}$, drawn according to an unknown conditional probability function given by
+In active learning, labels of individual points are not available immediately but can be obtained for a price. The goal is to find a good model, or to label a data set, at low cost.
+
+We consider a formulation in which we have a collection of $n$ points $X = \{x_1, \ldots, x_n\}$ that lie in a metric space $(\X, d)$. We can request the label of any of these points $x$, in which case we get a value $y \in \{-1, +1\}$ with unknown conditional distribution
 $$ \eta(x) = \E[y | x] = \pr(y=1|x) - \pr(y=-1|x) = 2 \pr(y=1|x) - 1 .$$
 The \emph{Bayes-optimal} label for $x$ is then 
 $$ g^*(x) = \left\{
@@ -52,35 +55,90 @@ $$ g^*(x) = \left\{
 \mbox{either} & \mbox{if $\eta(x)= 0$}
 \end{array} \right.
 $$
+We wish to find the Bayes-optimal labels for $X$.
 
-At the outset, we are given a finite dataset $X \subset \X$ of $n$ points, and we have the ability to query the labels of any of them. We are also given parameters $0 < \gamma, \delta < 1$. We want a procedure that chooses the next point, or batch of points, to query. This process will be applied repeatedly and then stopped at an arbitrary time, whereupon labels $\yh(x)$ must be provided for all $x \in X$, including those that were queried. Ideally, these will equal the Bayes-optimal labels $g^*(x)$, but we will only be judged on points $x \in X$ with $|\eta(x)| \geq \gamma$. That is, the number of mistakes is taken to be:
+More precisely, at the outset we have only the finite data set $X$, and are also given parameters $0 < \gamma, \delta < 1$ and the number of queries the algorithm is allowed to make, called the query budget. We want a procedure that chooses the next point, or batch of points, to query. This process will be applied repeatedly until the query budget is exhausted, whereupon labels $\yh(x)$ must be provided for all $x \in X$, including those that were queried. Ideally, these will equal the Bayes-optimal labels $g^*(x)$, but we will only be judged on points $x \in X$ with $|\eta(x)| \geq \gamma$. That is, the number of mistakes is taken to be:
 $$ \sum_{x \in X} {\bf 1}(\yh(x) \neq g^*(x),\ |\eta(x)| \geq \gamma) .$$
 The overall procedure is allowed to fail with probability $\delta$, to account for sampling error.
 
+\yoav{I think the discussion of sampling once vs sampling multiple times is too in the weeds for the introduction}
+\iffalse
 In some applications, a point $x$ can be queried repeatedly, with each resulting label being an independent draw according to $\eta(x)$. If this is the case, it is enough to query each point $O(1/\gamma^2)$ times and take the majority label, giving a total label complexity of $O(n/\gamma^2)$. For maximum generality, we do not assume that \emph{repeat querying} is allowed and thus we query each point at most once. If repeat queries are permissible, $O(1/\gamma^2)$ copies should be made of each point in $X$ before our method is applied.
+\footnotesize
+\fi
+
+\subsection{Nonparametric active learning}
+
+In our setting there is no underlying assumption about $g^*$, for instance that it follows a linear model. Thus we adopt a nonparametric approach.
+
+There are several existing proposals for nonparametric active learning, including those of \citep{CN08,DH08,M12,DNZ15,H17,ASU18}. These algorithms can be partitioned according to the overall principle they follow: either (1) they seek to obtain the Bayes-optimal labels of a few well-positioned points, and then propagate these to the rest of the space \cite{DNZ15,H17,ASU18} or (2) they estimate the biases (positive or negative) of entire regions at a time \cite{DH08,M12}. In this paper, we follow the second strategy because the only reliable and general-purpose way to assess the sign---that is, $\mbox{sign}(\eta(x))$---of an individual point is to query that particular point repeatedly: absent smoothness assumptions, the sign can change abruptly in an arbitrarily small neighborhood around $x$. On the other hand, the overall sign of a region $B$---that is, the sign of the average $\eta$ value in $B$---is easy to determine, as long as that region contains a reasonable number of points from $X$.
+
+
+\subsection{Three key challenges}
+
+The overall active learning strategy is to define a large collection of regions $\B$, of varying sizes, and to use label queries to estimate the sign (of the bias) associated with these regions. We start by estimating the sign for large region and gradually consider smaller and smaller regions.  Whenever the label budget runs out, the process can be stopped, and provisional labels can be assigned to the individual points in $X$.
+
+Ultimately we hope to cover $\X$ by a patchwork of neighborhoods in which the $\eta(x)$ values are either all above zero, or all below. Without strong smoothness conditions, these neighborhoods could be of very different sizes. The most beneficial for active learning are neighborhoods that contain a lot of $X$, but to get good coverage we might have to include neighborhoods that are much smaller.
+
+In earlier work~\cite{DH08,M12}, this has been addressed by starting with a collection of regions that form a hierarchical clustering of $X$. For instance, \cite{M12} uses a dyadic partitioning of the space at multiple levels of granularity. We also adopt a hierarchical approach in the sense that we segregate the regions $\B$ according to size. We begin by estimating the  sign of the largest of them, and then move on to progressively smaller neighborhoods as the need arises.
+
+In giving shape to this scheme, there are three key challenges to be addressed.
+
+The first challenge is deciding \emph{where to query}. Suppose that a particular region $B \subset \X$ has an average $\eta$-value close to zero. Earlier work (e.g. \cite{DH08}) has taken this as a sign that $B$ is part of the ``uncertainty'' region and should be queried further. But it is important to distinguish two cases: (1) the $\eta$ values are close to zero throughout $B$, and (2) $B$ consists of two sub-regions, one of which is strongly positive while the other is strongly negative. In the first case, there is little merit in querying further. But in the second case, there is a lot to be gained.
+
+To distinguish these two cases, we use a collection of neighborhoods that are \emph{overlapping}. For instance, we might take $\B$ to be \emph{all} balls in $\X$, although this becomes a finite collection once the given data points $X$ are taken into account. Case (2) can then be detected: we think of a point $x$ as being in the uncertainty region if it is contained in a neighborhood $B$ that is strongly positive as well as being in a neighborhood $B'$ that is strongly negative. Such points are ``known unknowns'', and these are the targets of our active querying.
+
+A second challenge is that the sign of $\eta(\cdot)$ can change in an arbitrarily small neighborhood of any given point $x$. Thus, if we end up looking at successively smaller neighborhoods containing $x$, say $B_1 \supset B_2 \supset B_3 \supset B_4 \cdots$, the labels of these sets can keep changing. So at first, when we are querying neighborhoods of roughly the size of $B_1$, we might think $x$ has label $+1$. When we move to neighborhoods of the size of $B_2$, this could change to $-1$. And then back to $+1$, and son. We call these \emph{mind changes}.
+
+What this means is that at no point can we ever we sure that we have correctly determined the label of $x$. Thus in addition to focused (active) querying, we also do background sampling, of the entire space, to pick up on regions where there might be mind changes. For simplicity, we make one background query for each focused query. 
+
+The third challenge is \emph{managing sampling} when the neighborhoods $\B$ are overlapping. Recall that we are interested in detecting points, and thus neighborhoods, whose $\eta$-values are either $> \gamma$ or $<-\gamma$. Thus suggests querying $k \approx 1/\gamma^2$ points at random from each region. Now, suppose we have queried this many points from neighborhood $B$ and then later want to query points from a different neighborhood $B'$ that overlaps $B$. How can we do this in a way that reuses the queries we have already made in $B \cap B'$?
+
+\emph{Poisson sampling} provides a clean solution. Rather than choosing $k$ points at random from $B$, we pick each point in $B$ with probability (roughly) $k/|B \cap X|$, independently. The specific way we implement this is to assign each $x \in X$ a uniform-random value $T_x \in [0,1]$, at the outset. When sampling $B$, we choose to query $x$ if $T_x \leq k/|B \cap X|$. And when it comes time to sample a different $B'$ that also contains $x$, we again choose $x$ if $T_x \leq k/|B' \cap X|$; if its label has already been obtained, we are able to reuse it. In this way, the random querying of overlapping regions is seamlessly managed.
+
+These three challenges go beyond earlier work in active learning, which was able to avoid problems like mind-changes by making smoothness assumptions on $\eta$. We propose a general-purpose active learning scheme and are thus forced to deal with these issues. 
+
+Our algorithm does not require any assumption on the input distribution. In the worst case the number of queries is twice the number of queries of a passive algorithm. We show that under several natural conditions the query complexity of our algorithm is logarithmic in the error.
+
+\subsection{Related work}
+
+There is a small body of work on the theory of nonparametric active learning. The early results of \cite{CN08} established upper and lower bounds on label complexity in situations where the Bayes-optimal boundary is of a simple form: a single threshold for one-dimensional data or a ``smooth boundary fragment'' in higher dimension.
+
+An algorithm for active learning based on hierarchical sampling was given in \cite{DH08} and was analyzed under smoothness conditions in \cite{KUB15}. In these works, the idea is to begin with a hierarchical clustering of $X$, and to then use queries to discover a pruning of this tree whose leaf-clusters are almost-pure in their labels. The method is not well-suited to situations with significant noise levels. Another approach using hierarchical dyadic partitions was given in \cite{M12} and analyzed under the commonly-used smoothness, margin, and density assumptions---namely, that $\eta$ is Holder-smooth, the fraction of points with $|\eta(x)| \leq t$ is some polynomial in $t$, and the marginal density is close to uniform---along with a more unusual smoothness requirement on $\eta$.
+
+A different strategy using nearest neighbors was explored by \cite{ASU18}. Their idea was to choose an appropriate scale $s$, find an $s$-cover of $X$, estimate the Bayes-optimal label for each point in this cover by querying its neighbors, and then use these cleanly-labeled points for 1-nearest neighbor classification. A somewhat more general approach was given in \cite{H17} and studied under the usual smoothness, margin, and density conditions, with resulting rates of convergence comparable to those found by \cite{M12}.
+
+Finally, \cite{DNZ15} suggested a graph-based method for active learning based on adaptively looking for the cut in the graph corresponding to the correct decision boundary. Their assumptions are based on properties of this graph cut and are thus not easy to directly relate to earlier work.
+
 
 \section{The active learning algorithm}
 
 \subsection{A collection of sampling regions}
 
-In the active learning algorithm, sampling is organized around a collection $\B$ of subsets of $\X$. These are the atomic sets on which we assess label bias and we call them ``balls''.
+In the active learning algorithm, sampling is organized around a collection $\B$ of subsets of $\X$. These are the atomic sets on which we assess label bias and we call them ``balls''.\footnote{We should define what counts as a set of balls. It seems to me that to achieve Bayes optimality you need the diameter of the ball-sets to go to zero as their number of points goes to infinity.}
 
 For any ball $B \in \B$, let $X_B = X \cap B$ be a shorthand for the data points that lie in it.\footnote{Since we use $X_B$ to assess the label bias of $B$, we will need to exclude points that cannot be considered random samples from $B$. For instance, consider these two alternatives: (1) $\B$ consists of a pre-defined set of balls. (2) $\B$ consists of balls defined by pairs of points in $X$, with each $x,x' \in X$ yielding the ball $B(x,\|x-x'\|)$. In the first case, all points $X \cap B$ are random draws from $B$. In the second case, we would need to exclude the two points $x,x'$ that define the ball.} 
-We put $B$ at {\it level} $\ell \geq 0$ if
+
+We group balls into levels by the number of points they contain. The ball $B$ is placed at {\it level} $\ell \geq 0$ if
 \begin{equation}
 \frac{n}{2^{\ell + 1}} \leq |X_B| < \frac{n}{2^\ell} .
 \label{eq:sampling-level}
 \end{equation}
-Let $\B_\ell$ consist of all balls in $\B$ that are at level $\ell$. Thus $\B_0, \B_1, \ldots$ is a partition of $\B$, with $\B_0$ consisting of very large balls and subsequent $\B_1, \B_2, \ldots$ consisting of successively smaller balls. We will use $\B_{\geq \ell}$ to denote all balls at levels $\ell$ or greater, and likewise $\B_{> \ell}$, $\B_{\leq \ell}$, and so on.
+Let $\B_\ell$ consist of all balls in $\B$ that are at level $\ell$. Thus $\B_0, \B_1, \ldots$ is a partition of $\B$, with $\B_0$ consisting of very large balls and subsequent $\B_1, \B_2, \ldots$ consisting of successively smaller balls. We will use $\B_{\geq \ell}$ to denote all balls at levels $\ell$ or greater, and likewise $\B_{> \ell}$, $\B_{\leq \ell}$, and so on. 
 
-For any $x \in \X$, let $\B(x) \subset \B$ denote the collection of balls that contain $x$ and can thus be used in determining $x$'s label. As before, we partition these balls by sampling-level, so that $\B_\ell(x) = \B(x) \cap \B_\ell$.
+Balls in lower levels are contain more points, and are, in a sense "easier". 
+Our algorithm iterates over levels $\ell=1,2,3,\ldots$, making it's way from easier to harder levels.
+
+For any $x \in \X$, let $\B(x) \subset \B$ denote the collection of balls that contain $x$ and can thus be used in determining $x$'s label. As before, we partition these balls by sampling-level, so that $\B_\ell(x) = \B(x) \cap \B_\ell$. We will also refer to $\B_\ell(x)$ as the {\em level $\ell$ neighborhood of $x$}
 
 \subsection{Estimating bias}
 
-We use label-queries to get qualitative estimates of the biases of balls $B \in \B$. These are in turn used to estimate the labels of individual points.
+We use label-queries to estimate the biases of balls $B \in \B$. 
+These are in turn used to estimate the labels of individual points.
 
 The bias of a ball $B \in \B$ is defined as
 $$ \eta_X(B) = \mbox{average}\{\eta(x): x \in X_B \} .$$
+
 Rather than working with a precise numerical estimate, we assign each ball a \emph{qualitative} bias estimate,
 $$ \yh(B) = 
 \left\{
@@ -92,6 +150,7 @@ $$ \yh(B) =
 \end{array}
 \right.
 $$
+
 The option $\bot$ is used until sufficiently many points in $X_B$ have been queried: the required number is $O(1/\gamma^2)$, recalling that $\gamma$ is the smallest bias that needs to be detected. Once this many labels are available, $\yh(B)$ is set to a value in $\{-1,0,+1\}$ and remains fixed thereafter. These bias estimates will with high probability be seen to satisfy the following guarantee.
 \begin{defn}
 For any $B \in \B$, we say bias estimate $\yh(B) \in \{+1,-1,0\}$ is \emph{$\gamma$-accurate} if the following holds:
@@ -108,11 +167,23 @@ Pick any point $x$ and any level $\ell$. Once qualitative bias estimates are ava
 \item $\PL_\ell(x)$ contains $+1$ if there exists a \emph{minimal} ball $B \in \B_{\leq \ell}(x)$ (that is, which has no other $B' \in \B_{\leq \ell}(x)$ strictly contained with it) with $\yh(B) = +1$.
 \item $\PL_\ell(x)$ contains $-1$ under a symmetrical condition.
 \end{itemize}
-This is spelled out precisely in the algorithm of Figure~\ref{alg:main}. The label-estimate for $x$ at level $\ell$, denoted $\yh_\ell(x)$, is then defined to be $-1$ if $\PL_\ell(x) = \{-1\}$, or $+1$ if $\PL_\ell(x) = \{+1\}$, or $0$ if $\PL_\ell(x) = \{\}$, or $!$ if $\PL_\ell(x) = \{-1,+1\}$, and remains fixed thereafter. Points labeled $!$ are ``known unknowns'': they are near the decision boundary and need further investigation. Points labeled $0$ show no significant bias.
+This is spelled out precisely in Equation~(\ref{eq:PL}) in  in Figure~\ref{alg:main}. The label-estimate for $x$ at level $\ell$, denoted $\yh_\ell(x) \in \{+1,-1,0,!\}$, is computed based on $\PL_\ell(x)$ as defined in Equation~(\ref{eq:provisional-label}). The intepretation of $\yh_\ell(x) \in \{+1,-1,0\}$ is given in Equation~\ref{def:accurate-bias-estimate}. The label "!" can be interpreted as "known unknown"~\cite{Rumsfled}
+or as "conflicting evidence". Our active learning algorithm makes "focused" queries in balls that contain known unknowns in order to resolve the label.
 
-\subsection{The algorithm}
+% to be $-1$ if $\PL_\ell(x) = %\{-1\}$, or $+1$ if $\PL_\ell(x) = \{+1\}$, or $0$ if $\PL_\ell(x) = \{\}$, or $!$ %if $\PL_\ell(x) = \{-1,+1\}$, %and remains fixed thereafter. Points labeled $!$ are ``known unknowns'': they are %near the decision boundary and %need further investigation. Points labeled $0$ show no significant bias.
 
-The overall active learning algorithm is shown in Figure~\ref{alg:main}. It makes calls to subroutines for background and focused sampling, shown in Figure~\ref{alg:sampling}. 
+\subsection{The neighborhoods active learning algorithm}
+
+Our active learning algorithm is described in Figures~\ref{alg:main},\ref{alg:sampling}.
+A rough description of the algorithm follows. There are two types of queries: focused queries and background queries. The background queries correspond to passive learning. Focused queries are made in "uncertainty regions" $U_\ell$ and correspond to active learning. The uncertainty region $U_\ell$ is the union of all balls in $\B_{\ell}$ that contain a point on which the prediction is "known unknown", $\yh_\ell(x)=!$
+
+
+At each level $\ell$ and each point $a$,
+the algorithm considers the 
+Roughly speaking, the algorithm iterates over the levels $\ell=0,1,2,3,\ldots$, at each level 
+
+and~\ref{alg:bias-estimate}. Central variables are the uncertainty  regions $U_\ell$ which are all
+
 
 \begin{figure}[h!]
 \framebox{
@@ -141,7 +212,7 @@ The overall active learning algorithm is shown in Figure~\ref{alg:main}. It make
 \item For each $x \in X$ and level $\ell \geq 0$ for which all $\{\yh(B): B \in \B_\ell(x)\}$ are available:
 \begin{itemize}
 \item Determine the possible labels for $x$ at level $\ell$:
-\begin{equation}
+\begin{equation} 
 \begin{split}
 \PL_\ell(x) = \{s \in \{-1, +1\}:\  & \mbox{there exists $B \in \B_{\leq \ell}(x)$ with $\yh(B) = s$} \\ 
 & \mbox{and no other $B' \in \B_{\leq \ell}(x)$ has $X_{B'} \subsetneq X_B$.} \} 
@@ -149,7 +220,7 @@ The overall active learning algorithm is shown in Figure~\ref{alg:main}. It make
 \label{eq:PL}
 \end{equation}
 \item Set
-\begin{equation}
+\begin{equation} 
 \yh_\ell(x) = 
 \left\{
 \begin{array}{cl}
@@ -167,6 +238,7 @@ The overall active learning algorithm is shown in Figure~\ref{alg:main}. It make
 \begin{itemize}
 \item $U_0 = \{x \in X: \yh_0(x) = \bot\}$
 \item For all levels $\ell \geq 1$: $U_\ell = \{x \in X: \yh_{\ell-1}(x) = \,!, \ \yh_\ell(x) = \bot\}$
+\item YF: $U_\ell = \bigcup \{B, B \in \B_\ell, \exists x \in B: \yh_{\ell-1}(x) = \,!, \ \yh_\ell(x) = \bot\}$
 \end{itemize}
 \end{itemize}
 
@@ -339,16 +411,26 @@ All focused samples at level $\ell$ lie in $\{z \in \Delta_\ell: T_z \leq \tau_\
 \end{lemma}
 
 We can now give generic label complexity bounds in terms of the quantities $L_1$, $L_2$, and $\Delta_\ell$.
+
+
 \begin{thm}
-Suppose the active learning algorithm is allowed to make $0 < m \leq n$ queries. Define
-$$ \ell_1 = \left\lfloor \lg \frac{m}{32k} \right\rfloor .$$
-and let $\ell_2$ be the largest integer $\leq \lg (n/2k)$ such that
-$$ \sum_{\ell = \ell_1 + 1}^{\ell_2} |\Delta_{\ell}| \, \tau_\ell \ \leq \ \frac{m}{8} .$$
-Then any point $x \in X$ with $L_1(x) \leq \ell_1$ and $L_2(x) \leq \ell_2$ will have final label $\yh(x) = g^*(x)$.
+Suppose the active learning algorithm makes $0 < m \leq n$ queries. Then all points $x \in X$ with $L_1(x) \leq \ell_1$ and $L_2(x) \leq \ell_2$ will get correct labels $\yh(x) = g^*(x)$, where
+$$ \ell_1 = \left\lfloor \lg \frac{m}{32k} \right\rfloor $$
+and $\ell_2$ is the largest integer $\leq \lg (n/2k)$ such that
+$$ \sum_{\ell = \ell_1 + 1}^{\ell_2} |\Delta_{\ell}| \, 2^{\ell+2} \ \leq \ \frac{mn}{8k} .$$
 \label{thm:label-complexity}
 \end{thm}
 
-The argument is roughly that during the first $m/2$ queries, background sampling alone is enough to ensure that all points with $L_1(x) \leq \ell_1$ get $\yh_\ell$ values that are henceforth either the correct labels or $!$. During the next $m/2$ queries, focused sampling then correctly resolves the subset of these points with $L_2(x) \leq \ell_2$.
+A more local form of this result is as follows.
+\begin{cor}
+Pick any $x \in X$, let $L_1(x),L_2(x)$ by the critical levels for $x$ and let
+\[
+m_0(x) = \max\left( k \cdot 2^{L_1(x)}, \frac{32k}{n} \sum_{\ell=0}^{L_2(x)} |\Delta_\ell| \, 2^\ell\right)
+\]
+then after $m>m_0(x)$ queries by the NAC (neighborhood based Active Learning) algorithm $\yh(x) = g^*(x)$
+\end{cor}
+
+The argument for Theorem~\ref{thm:label-complexity} is roughly that during the first $m/2$ queries, background sampling alone is enough to ensure that all points with $L_1(x) \leq \ell_1$ get $\yh_\ell$ values that are henceforth either the correct labels or $!$. During the next $m/2$ queries, focused sampling then correctly resolves the subset of these points with $L_2(x) \leq \ell_2$.
 
 \subsection{Example: One-dimensional data with Massart noise}
 
@@ -483,7 +565,7 @@ Then any point $x \in X$ with $L_1(x) \leq \ell_1$ and $L_2(x) \leq \ell_2$ will
 
 In order to apply Theorem~\ref{thm:label-complexity-dist}, we need to be able to bound two quantities: the levels $L_1(x)$ and $L_2(x)$; and the probability masses of boundary sets $\partial_{p,q}$. To do this, we now introduce two simplifying assumptions.
 
- Let $\X_\gamma = \{x \in \X: |\eta(x)| \geq \gamma\}$; thus $X \cap \X_\gamma$ is the set of points we want labeled. We will further divide this set by label: for $s \in \{-1,+1\}$, let $\X^s_\gamma = \{x \in \X: s \cdot \eta(x) \geq \gamma\}$. 
+ Let $\X_\gamma = \{x \in \X: |\eta(x)| \geq \gamma\}$; thus $X \cap \X_\gamma$ is the set of points on which our labels will be judged. We will further divide this set by label: for $s \in \{-1,+1\}$, let $\X^s_\gamma = \{x \in \X: s \cdot \eta(x) \geq \gamma\}$. 
 \begin{enumerate}
 \item[(A1)] There is an absolute constant $p_o > 0$ for which the following holds: for any $x \in \X_\gamma$, there exists $B \in \B(x)$ such that $B \subset \X^{s(x)}_\gamma$ and $\mu(B) \geq p_o$.
 \end{enumerate}
@@ -507,6 +589,8 @@ fraction of $X$.
 \end{thm}
 
 \subsection{Realizing the assumptions}
+
+\yoav{How about the following simplication: keep (C1,C4(simplified)) and replace (C2,C3) by the assumption that $|\eta(x)|>\gamma$ for all $x$, i.e. a jump in the conditional probability at the boundary? }
 
 We'll now see how (A1) and (A2) are consequences of somewhat more commonplace assumptions on data distributions. The first three are standard in nonparametric estimation while the fourth is common in computational geometry.
 \begin{enumerate}
@@ -539,6 +623,9 @@ Conditions (C1), (C2), and (C3) yield assumption (A2) with $\sigma = \alpha \bet
 Under (C1), any ball of probability mass $\leq p$ has volume $\leq p/c_o$ and radius $\leq (p/(c_o v_d))^{1/d}$. Let's call this latter quantity $r$. Thus, any point in $\partial_p$ lies within distance $2r$ of the boundary, while a point in $\partial_{p,p}$ lies within distance $4r$. By (C2), any point in $\partial_{p,p}$ has $|\eta(x)| \leq L (4r)^\alpha$. The total probability mass of such points can then be bounded using (C3):
 $$ \mu(\partial_{p,p}) \ \leq \ M (L (4r)^\alpha)^\beta \ = \ M \cdot L^\beta \cdot 4^{\alpha\beta} \cdot \left( \frac{p}{c_o v_d} \right)^{\alpha\beta/d} .$$
 \end{proof}
+
+\bibliography{refs}
+\bibliographystyle{plain}
 
 \pagebreak
 \appendix
