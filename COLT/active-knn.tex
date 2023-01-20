@@ -61,44 +61,134 @@ More precisely, at the outset we have only the finite data set $X$, and are also
 $$ \sum_{x \in X} {\bf 1}(\yh(x) \neq g^*(x),\ |\eta(x)| \geq \gamma) .$$
 The overall procedure is allowed to fail with probability $\delta$, to account for sampling error.
 
-\yoav{I think the discussion of sampling once vs sampling multiple times is too in the weeds for the introduction}
 \iffalse
+\yoav{I think the discussion of sampling once vs sampling multiple times is too in the weeds for the introduction}
 In some applications, a point $x$ can be queried repeatedly, with each resulting label being an independent draw according to $\eta(x)$. If this is the case, it is enough to query each point $O(1/\gamma^2)$ times and take the majority label, giving a total label complexity of $O(n/\gamma^2)$. For maximum generality, we do not assume that \emph{repeat querying} is allowed and thus we query each point at most once. If repeat queries are permissible, $O(1/\gamma^2)$ copies should be made of each point in $X$ before our method is applied.
 \footnotesize
 \fi
 
 \subsection{Nonparametric active learning}
 
-In our setting there is no underlying assumption about $g^*$, for instance that it follows a linear model. Thus we adopt a nonparametric approach.
+In our setting there is no underlying assumption about $g^*$, for
+instance that it follows a linear model. Thus we adopt a nonparametric
+approach.
 
-There are several existing proposals for nonparametric active learning, including those of \citep{CN08,DH08,M12,DNZ15,H17,ASU18}. These algorithms can be partitioned according to the overall principle they follow: either (1) they seek to obtain the Bayes-optimal labels of a few well-positioned points, and then propagate these to the rest of the space \cite{DNZ15,H17,ASU18} or (2) they estimate the biases (positive or negative) of entire regions at a time \cite{DH08,M12}. In this paper, we follow the second strategy because the only reliable and general-purpose way to assess the sign---that is, $\mbox{sign}(\eta(x))$---of an individual point is to query that particular point repeatedly: absent smoothness assumptions, the sign can change abruptly in an arbitrarily small neighborhood around $x$. On the other hand, the overall sign of a region $B$---that is, the sign of the average $\eta$ value in $B$---is easy to determine, as long as that region contains a reasonable number of points from $X$.
+There are several existing proposals for nonparametric active
+learning, including those of
+\citep{CN08,DH08,M12,DNZ15,H17,ASU18}. These algorithms can be
+partitioned according to the overall principle they follow: either (1)
+they seek to obtain the Bayes-optimal labels of a few well-positioned
+points, and then propagate these to the rest of the space
+\cite{DNZ15,H17,ASU18} or (2) they estimate the biases (positive or
+negative) of entire regions at a time \cite{DH08,M12}. In this paper,
+we follow the second strategy because the only reliable and
+general-purpose way to assess the sign---that is,
+$\mbox{sign}(\eta(x))$---of an individual point is to query that
+particular point repeatedly: absent smoothness assumptions, the sign
+can change abruptly in an arbitrarily small neighborhood around
+$x$. On the other hand, determining if $\eta(B)>\gamma$ or if $\eta(B)<-\gamma$
+requires a constant number of queries, independent of the size of $B$.
 
+\subsection{Overlapping regions}
 
-\subsection{Three key challenges}
+The overall active learning strategy is to use a set of regions of
+different sizes $\B$ and to use label queries to estimate the sign (of
+the bias) associated selected subsets of regions. A typical point
+$x \in X$ is contained in many regions, we call the set of regions of
+size $\ell$ that contain $x$ the $\ell$-{\em neighborhood} of $x$ and
+denote it by $\B_\ell(x)$. Special significance is given to points $x$
+where the set $\B_\ell(x)$ contains regions with opposing signs we
+call these points ``known-unknowns'' or ``conflicts''. Conflict points
+appear close to the classification boundary and are used to define the
+regions for active sampling. Non-conflice points are provisionally
+labeled according to the concensus sign of the neighborhood.
 
-The overall active learning strategy is to define a large collection of regions $\B$, of varying sizes, and to use label queries to estimate the sign (of the bias) associated with these regions. We start by estimating the sign for large region and gradually consider smaller and smaller regions.  Whenever the label budget runs out, the process can be stopped, and provisional labels can be assigned to the individual points in $X$.
+This design differs from earlier work on region based
+non-parametric active learning~\cite{DH08,M12} where the regions form
+a hierarchical partitioning of the space, so that each point is
+covered by exactly region at each level.  For instance, \cite{M12}
+uses a dyadic partitioning of the space at multiple levels of
+granularity. This eliminates conflicts and thereby
+requires different approach to drive active learning.
 
-Ultimately we hope to cover $\X$ by a patchwork of neighborhoods in which the $\eta(x)$ values are either all above zero, or all below. Without strong smoothness conditions, these neighborhoods could be of very different sizes. The most beneficial for active learning are neighborhoods that contain a lot of $X$, but to get good coverage we might have to include neighborhoods that are much smaller.
+% We also adopt a hierarchical approach in the sense that
+% we segregate the regions $\B$ according to size. We begin by
+% estimating the sign of the largest of them, and then move on to
+% progressively smaller neighborhoods as the need arises.
 
-In earlier work~\cite{DH08,M12}, this has been addressed by starting with a collection of regions that form a hierarchical clustering of $X$. For instance, \cite{M12} uses a dyadic partitioning of the space at multiple levels of granularity. We also adopt a hierarchical approach in the sense that we segregate the regions $\B$ according to size. We begin by estimating the  sign of the largest of them, and then move on to progressively smaller neighborhoods as the need arises.
+\subsection{Three key Challanges}
+In giving shape to the proposed scheme, three key challenges need to to be addressed.
 
-In giving shape to this scheme, there are three key challenges to be addressed.
+The first challenge is deciding \emph{where to query}. Suppose that a
+particular region $B \subset \X$ has an average $\eta$-value close to
+zero. Earlier work (e.g. \cite{DH08}) has taken this as a sign that
+$B$ is part of the ``uncertainty'' region and should be queried
+further. But it is important to distinguish two cases: (1) the $\eta$
+values are close to zero throughout $B$, and (2) $B$ consists of two
+sub-regions, one of which is strongly positive while the other is
+strongly negative. In the first case, there is little merit in
+querying further. But in the second case, there is a lot to be gained.
 
-The first challenge is deciding \emph{where to query}. Suppose that a particular region $B \subset \X$ has an average $\eta$-value close to zero. Earlier work (e.g. \cite{DH08}) has taken this as a sign that $B$ is part of the ``uncertainty'' region and should be queried further. But it is important to distinguish two cases: (1) the $\eta$ values are close to zero throughout $B$, and (2) $B$ consists of two sub-regions, one of which is strongly positive while the other is strongly negative. In the first case, there is little merit in querying further. But in the second case, there is a lot to be gained.
+To distinguish these two cases, we use a collection of neighborhoods
+that are \emph{overlapping}. For instance, we might take $\B$ to be
+\emph{all} balls in $\X$, although this becomes a finite collection
+once the given data points $X$ are taken into account. Case (2) can
+then be detected: we think of a point $x$ as being in the uncertainty
+region if it is contained in a region $B$ that is strongly
+positive as well as being in a region $B'$ that is strongly
+negative. Such points are ``known unknowns'', and these are the
+targets of our active querying.
 
-To distinguish these two cases, we use a collection of neighborhoods that are \emph{overlapping}. For instance, we might take $\B$ to be \emph{all} balls in $\X$, although this becomes a finite collection once the given data points $X$ are taken into account. Case (2) can then be detected: we think of a point $x$ as being in the uncertainty region if it is contained in a neighborhood $B$ that is strongly positive as well as being in a neighborhood $B'$ that is strongly negative. Such points are ``known unknowns'', and these are the targets of our active querying.
+A second challenge is that even when a neighborhood $\B_\ell(x)$ has a
+consistent sign, and thus a provisional label, it is possible that
+$\B_{\ell+1}(x)$ has the opposite consistent sign resulting in a flipped provisional label.
+Thus, if we consider 
+successively smaller neighborhoods containing $x$, say
+$\B_1(x) \supset \B_2(x) \supset \B_3(x) \supset \B_4(x) \cdots$, the provisional label for $x$
+can keep changing.
 
-A second challenge is that the sign of $\eta(\cdot)$ can change in an arbitrarily small neighborhood of any given point $x$. Thus, if we end up looking at successively smaller neighborhoods containing $x$, say $B_1 \supset B_2 \supset B_3 \supset B_4 \cdots$, the labels of these sets can keep changing. So at first, when we are querying neighborhoods of roughly the size of $B_1$, we might think $x$ has label $+1$. When we move to neighborhoods of the size of $B_2$, this could change to $-1$. And then back to $+1$, and son. We call these \emph{mind changes}.
+% So at first, when we are querying regions of
+% roughly the size of $B_1$, we might think $x$ has label $+1$. When we
+% move to of the size of $B_2$, this could change to $-1$. And then back
+% to $+1$, and son. We call these \emph{mind changes}.
 
-What this means is that at no point can we ever we sure that we have correctly determined the label of $x$. Thus in addition to focused (active) querying, we also do background sampling, of the entire space, to pick up on regions where there might be mind changes. For simplicity, we make one background query for each focused query. 
+In other words, at no point can we ever we sure that we have
+correctly determined the label of $x$. Thus in addition to focused
+(active) querying, we also do background sampling, of the entire
+space, to pick up on regions where there might be mind changes. For
+simplicity, we make one background query for each focused query.
 
-The third challenge is \emph{managing sampling} when the neighborhoods $\B$ are overlapping. Recall that we are interested in detecting points, and thus neighborhoods, whose $\eta$-values are either $> \gamma$ or $<-\gamma$. Thus suggests querying $k \approx 1/\gamma^2$ points at random from each region. Now, suppose we have queried this many points from neighborhood $B$ and then later want to query points from a different neighborhood $B'$ that overlaps $B$. How can we do this in a way that reuses the queries we have already made in $B \cap B'$?
+The third challenge is \emph{managing sampling} when the neighborhoods
+$\B$ are overlapping. Recall that we are interested in detecting
+points, and thus neighborhoods, whose $\eta$-values are either
+$> \gamma$ or $<-\gamma$. Thus suggests querying
+$k \approx 1/\gamma^2$ points at random from each region. Now, suppose
+we have queried this many points from neighborhood $B$ and then later
+want to query points from a different neighborhood $B'$ that overlaps
+$B$. How can we do this in a way that reuses the queries we have
+already made in $B \cap B'$?
 
-\emph{Poisson sampling} provides a clean solution. Rather than choosing $k$ points at random from $B$, we pick each point in $B$ with probability (roughly) $k/|B \cap X|$, independently. The specific way we implement this is to assign each $x \in X$ a uniform-random value $T_x \in [0,1]$, at the outset. When sampling $B$, we choose to query $x$ if $T_x \leq k/|B \cap X|$. And when it comes time to sample a different $B'$ that also contains $x$, we again choose $x$ if $T_x \leq k/|B' \cap X|$; if its label has already been obtained, we are able to reuse it. In this way, the random querying of overlapping regions is seamlessly managed.
+\emph{Poisson sampling} provides a clean solution. Rather than
+choosing $k$ points at random from $B$, we pick each point in $B$ with
+probability (roughly) $k/|B \cap X|$, independently. The specific way
+we implement this is to assign each $x \in X$ a uniform-random value
+$T_x \in [0,1]$, at the outset. When sampling $B$, we choose to query
+$x$ if $T_x \leq k/|B \cap X|$. And when it comes time to sample a
+different $B'$ that also contains $x$, we again choose $x$ if
+$T_x \leq k/|B' \cap X|$; if its label has already been obtained, we
+are able to reuse it. In this way, the random querying of overlapping
+regions is seamlessly managed.
 
-These three challenges go beyond earlier work in active learning, which was able to avoid problems like mind-changes by making smoothness assumptions on $\eta$. We propose a general-purpose active learning scheme and are thus forced to deal with these issues. 
+These three challenges go beyond earlier work in active learning,
+which was able to avoid problems like mind-changes by making
+smoothness assumptions on $\eta$. We propose a general-purpose active
+learning scheme and are thus forced to deal with these issues.
 
-Our algorithm does not require any assumption on the input distribution. In the worst case the number of queries is twice the number of queries of a passive algorithm. We show that under several natural conditions the query complexity of our algorithm is logarithmic in the error.
+Our algorithm does not require any assumption on the input
+distribution. In the worst case the number of queries is twice the
+number of queries of a passive algorithm. We show that under several
+natural conditions the query complexity of our algorithm is
+logarithmic in the error.
 
 \subsection{Related work}
 
@@ -115,11 +205,27 @@ Finally, \cite{DNZ15} suggested a graph-based method for active learning based o
 
 \subsection{A collection of sampling regions}
 
-In the active learning algorithm, sampling is organized around a collection $\B$ of subsets of $\X$. These are the atomic sets on which we assess label bias and we call them ``balls''.\footnote{We should define what counts as a set of balls. It seems to me that to achieve Bayes optimality you need the diameter of the ball-sets to go to zero as their number of points goes to infinity.}
+In the active learning algorithm, sampling is organized around a
+collection $\B$ of regions that are subsets of $\X$. These are the
+atomic sets on which we assess label bias. While our general results
+hold for arbitrary regions, there seems to be little cost to
+restricting regions to be balls in our metric space. From here on out,
+we will use the term ball instead of region.
 
-For any ball $B \in \B$, let $X_B = X \cap B$ be a shorthand for the data points that lie in it.\footnote{Since we use $X_B$ to assess the label bias of $B$, we will need to exclude points that cannot be considered random samples from $B$. For instance, consider these two alternatives: (1) $\B$ consists of a pre-defined set of balls. (2) $\B$ consists of balls defined by pairs of points in $X$, with each $x,x' \in X$ yielding the ball $B(x,\|x-x'\|)$. In the first case, all points $X \cap B$ are random draws from $B$. In the second case, we would need to exclude the two points $x,x'$ that define the ball.} 
+For any ball $B \in \B$, let $X_B = X \cap B$ be a shorthand for the
+data points that lie in it.\footnote{Since we use $X_B$ to assess the
+  label bias of $B$, we will need to exclude points that cannot be
+  considered random samples from $B$. For instance, consider these two
+  alternatives: (1) $\B$ consists of a pre-defined set of balls. (2)
+  $\B$ consists of balls defined by pairs of points in $X$, with each
+  $x,x' \in X$ yielding the ball $B(x,\|x-x'\|)$. In the first case,
+  all points $X \cap B$ are random draws from $B$. In the second case,
+  we would need to exclude the two points $x,x'$ that define the
+  ball.}
 
-We group balls into levels by the number of points they contain. The ball $B$ is placed at {\it level} $\ell \geq 0$ if
+We group balls into levels by their size, which is the number of
+points they contain. The ball $B$ is placed at {\it level}
+$\ell \geq 0$ if
 \begin{equation}
 \frac{n}{2^{\ell + 1}} \leq |X_B| < \frac{n}{2^\ell} .
 \label{eq:sampling-level}
@@ -174,16 +280,21 @@ or as "conflicting evidence". Our active learning algorithm makes "focused" quer
 
 \subsection{The neighborhoods active learning algorithm}
 
-Our active learning algorithm is described in Figures~\ref{alg:main},\ref{alg:sampling}.
-A rough description of the algorithm follows. There are two types of queries: focused queries and background queries. The background queries correspond to passive learning. Focused queries are made in "uncertainty regions" $U_\ell$ and correspond to active learning. The uncertainty region $U_\ell$ is the union of all balls in $\B_{\ell}$ that contain a point on which the prediction is "known unknown", $\yh_\ell(x)=!$
+Our active learning algorithm is described in
+Figures~\ref{alg:main},\ref{alg:sampling}.  A rough description of the
+algorithm follows. There are two types of queries: focused queries and
+background queries. The background queries correspond to passive
+learning. Focused queries are made in the focus set $U_\ell$ and
+correspond to active learning. The uncertainty region $U_\ell$ is the
+union of all balls in $\B_{\ell}$ that contain a point on which the
+prediction is "known unknown", $\yh_\ell(x)=!$.
 
 
-At each level $\ell$ and each point $a$,
-the algorithm considers the 
-Roughly speaking, the algorithm iterates over the levels $\ell=0,1,2,3,\ldots$, at each level 
-
-and~\ref{alg:bias-estimate}. Central variables are the uncertainty  regions $U_\ell$ which are all
-
+% At each level $\ell$
+% and each point $a$, the algorithm considers the Roughly speaking, the
+% algorithm iterates over the levels $\ell=0,1,2,3,\ldots$, at each
+% level and~\ref{alg:bias-estimate}. Central variables are the
+% uncertainty regions $U_\ell$ which are all
 
 \begin{figure}[h!]
 \framebox{
@@ -238,7 +349,6 @@ and~\ref{alg:bias-estimate}. Central variables are the uncertainty  regions $U_\
 \begin{itemize}
 \item $U_0 = \{x \in X: \yh_0(x) = \bot\}$
 \item For all levels $\ell \geq 1$: $U_\ell = \{x \in X: \yh_{\ell-1}(x) = \,!, \ \yh_\ell(x) = \bot\}$
-\item YF: $U_\ell = \bigcup \{B, B \in \B_\ell, \exists x \in B: \yh_{\ell-1}(x) = \,!, \ \yh_\ell(x) = \bot\}$
 \end{itemize}
 \end{itemize}
 

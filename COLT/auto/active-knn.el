@@ -14,6 +14,7 @@
    (TeX-add-symbols
     '("sanjoy" 1)
     '("yoav" 1)
+    '("comment" 2)
     "R"
     "pr"
     "E"
@@ -81,6 +82,8 @@
     "defn"
     "assump"
     "open"
-    "proof"))
+    "proof")
+   (LaTeX-add-bibliographies
+    "refs"))
  :latex)
 
