@@ -698,6 +698,14 @@ fraction of $X$.
 \label{thm:label-complexity-specific}
 \end{thm}
 
+\begin{figure}
+\begin{center}
+\includegraphics[width=4.5in]{Figures/Focus_sets.pdf}
+\end{center}
+\caption{A 2D example of the operation of the algorithm.{\bf (a)} A 400x400 square is partitioned in two, one with bias $\eta=0.3$ and the other with bias $\eta=-0.3$. There is a smooth and bounded curvature boundary between the two parts. In addition there is a ball of radius 15 {\bf (c)} with an opposite polarity than it's surroundings. The right hand side {\bf(b)} depicts the focused sampling sets for diferent radii. Note how the focus set becomes increasingly closer to the smooth boundary. Note also that the ball {\bf (c)} does not impact the focus set until $r=10$. This is the case where the prediction for large radii is wrong and is corrected by a ``mind change''}
+\label{fig:twod-focus-sets}
+\end{figure}
+
 \subsection{Realizing the assumptions}
 
 \yoav{How about the following simplication: keep (C1,C4(simplified)) and replace (C2,C3) by the assumption that $|\eta(x)|>\gamma$ for all $x$, i.e. a jump in the conditional probability at the boundary? }

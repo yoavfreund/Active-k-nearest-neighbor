@@ -58,6 +58,7 @@
     "thm:label-complexity-dist"
     "lemma:L1-bound"
     "thm:label-complexity-specific"
+    "fig:twod-focus-sets"
     "lemma:A1"
     "lemma:large-deviation-discrete"
     "lemma:large-deviation-continuous"
