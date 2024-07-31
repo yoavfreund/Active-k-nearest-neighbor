@@ -1,0 +1,230 @@
+\documentclass{article}
+\usepackage{fullpage}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{natbib}
+
+\def\R{{\mathbb{R}}}
+\def\pr{{\rm Pr}}
+\def\E{{\mathbb E}}
+\def\X{{\mathcal X}}
+\def\Y{{\mathcal Y}}
+\def\H{{\mathcal H}}
+\def\G{{\mathcal G}}
+\def\B{{\mathcal B}}
+\def\bias{{\rm bias}}
+\def\supp{{\rm supp}}
+
+\newtheorem{thm}{Theorem}
+\newtheorem{lemma}[thm]{Lemma}
+\newtheorem{cor}[thm]{Corollary}
+\newtheorem{claim}[thm]{Claim}
+\newtheorem{defn}[thm]{Definition}
+\newtheorem{assump}{Assumption}
+\newtheorem{open}{Open problem}
+\newenvironment{proof}{\noindent {\sc Proof:}}{$\Box$ \medskip}
+
+\DeclareMathOperator*{\argmax}{arg\,max}
+
+\title{An active $k$-nearest neighbor algorithm}
+
+\begin{document}
+
+\maketitle
+
+\section{Setup}
+
+Basic Transductive setup:
+\begin{itemize}
+\item Intance set $\X =\{x_1,\dots,x_n\}$, $x_i in \R^d$. The set $\X$
+  is fixed and known to the learner. The probability of each $x \in
+  \R$ is $1/n$. 
+\item Label space $\Y = \{-1,+1\}$. Each $x \in \X$ is associated with
+  a conditional probability function $\eta(x) = \pr(Y=1|X=x)$.
+\item Let $g^*$ denote the Bayes-optimal classifier on $\X$:
+  $$ g^*(x) = \mbox{sign}(2 \eta(x) - 1) .$$
+  \item Label Queries: the algorithm can select any example $x \in
+    \X$, as a response it gets a label in $\Y$ chosesn acccording to
+    $\eta(x)$.    
+  \end{itemize}
+
+\section{Notation}
+\begin{itemize}
+  \item {\bf Balls:} $B(x,r)$ denotes a ball of radius $r$ centered at $x$.
+  \item {\bf Probability of a ball} The probability of a ball is the
+    fraction of points in $\X$ that fall inside $B(x,r)$.
+    $$ \mu(B(x,r)) = \frac{ |B(x,r) \cap \X|}{n} $$
+  \item {\bf measuring radius in terms of probability}
+For any $x \in X$ and any $p > 0$, let $r_p(x)$ denote the smallest radius $r$ such that $\mu(B(x, r)) \geq p$. 
+\end{itemize}
+
+For any $p, \gamma> 0$, let $\X_{p, \gamma}$ consist of all points $x \in \supp(\mu)$ such that:
+\begin{itemize}
+\item either $\eta(B(x,r)) \geq 1/2 + \gamma$ for all $0 \leq r \leq r_p(x)$ 
+\item or $\eta(B(x,r)) \leq 1/2 - \gamma$ for all $0 \leq r \leq r_p(x)$.
+\end{itemize}
+
+
+\section{Algorithm for pool-based active learning}
+
+Global variables:
+\begin{itemize}
+\item $U \subset X$, a subset of points deemed ``uncertain''
+\item $Q \subset X$, points whose labels have been queried
+\item $R \subset Q$, points in $Q$ that are random draws from the entire space $X$
+\item $I \subset X$, points whose labels have been inferred, possibly incorrectly
+\end{itemize}
+
+We will use large deviation bounds for the class $\B$ of balls centered at points of $X$. This is a class of size at most ${n \choose 2}$. The bounds will assert the following: suppose $m$ points are drawn i.i.d. from $\mu|_S$, the restriction of $\mu$ to a subset $S \subset \X$, and labeled according to $\eta$. Then with probability at least $1-\delta$, the following properties hold for all $B \in \B$:
+\begin{enumerate}
+\item[(P1)] If $\mu|_S(B) \geq (k/m) \ln (n/\delta)$, then $B$ gets at least $k+1$ points.
+\item[(P2)] If $B$ gets at least $k$ points, then the average of the labels in $B$ is equal to $\eta(B) \pm k^{-1/2}$.
+\end{enumerate}
+We will use several rounds of sampling. Let $G_t$ denote the good event that these conditions hold for the points drawn in round $t$.
+
+\subsection{A single round of sampling}
+
+\begin{figure}[h!]
+\framebox{
+\begin{minipage}[t]{6.3in}
+{\bf function Extend}($k$, $p$, $\delta$):
+\begin{itemize}
+\item Setup:
+\begin{itemize}
+\item Define the region of uncertainty:
+$$ U = X \setminus (Q \cup I) $$
+\item Determine the sampling region:
+$$ S =  \left( \bigcup_{x \in U} B(x, r_p(x)) \right) \cap X $$
+\item Choose number of samples:
+$$ m = \frac{|S|}{|X|} \cdot \frac{k}{p} \cdot \ln \frac{n}{\delta} $$
+\end{itemize}
+
+\item Querying:
+\begin{itemize}
+\item Let $M$ consist of $m$ points chosen uniformly at random from $S$
+\item Let $M'$ consist of $m$ points chosen uniformly at random from $X$
+\item For all $x \in (M \cup M') \setminus Q$: 
+\begin{itemize}
+\item Query $x$'s label
+\item Add $x$ to $Q$
+\end{itemize}
+\item $R = R \cup M'$
+\end{itemize}
+
+\item Update:
+\begin{itemize}
+\item For all $x \in U$:
+\begin{itemize}
+\item Find the $k$ nearest neighbors of $x$ in $M$ (can probably do $M \cup R$)
+\item If their labels have significant bias, in the sense that their average has absolute value $\geq k^{-1/2}$, label $x$ accordingly and add it to $I$
+\end{itemize}
+\item For all $x \in I$:
+\begin{itemize}
+\item Find the $k$ nearest neighbors of $x$ in $R$
+\item If their labels have significant bias and disagree with $x$'s current label, move all of $B(x,r_p(x)) \cap (I \setminus \{x\})$ out of $I$ (not sure exactly what to do here)
+\end{itemize}
+\end{itemize}
+\end{itemize}
+\end{minipage}}
+\caption{Extend: the key subroutine for pool-based active learning}
+\label{fig:extend}
+\end{figure}
+
+\begin{lemma}
+Consider round $t$ of sampling. Suppose event $G_t$ holds. For any $x$, let $\widetilde{r}(x)$ denote the smallest radius $r$ such that $B(x,r)$ contains $k+1$ points of $M$. Then for all $x \in U$,
+\begin{enumerate}
+\item[(a)] $\widetilde{r}(x) \leq r_p(x)$
+\item[(b)] the bias of the $k$ nearest neighbors of $x$ in $M$ agrees with $\eta(B(x,\widetilde{r}(x))) \pm 1/k^{1/2}$.
+\end{enumerate}
+\label{lemma:bias-bound}
+\end{lemma}
+\begin{proof}
+Let's begin with (a). Choose any $x \in U$ and write $B = B(x,r_p(x))$. The points in $M$ can be considered to be $m$ i.i.d. draws from $\mu|_S$. Ignoring the small discrepancy between $\mu(S)$ and $|S|/|X|$, we have 
+$$ \mu|_S(B) = \frac{\mu(B)}{\mu(S)} \geq \frac{p}{\mu(S)} \geq \frac{k}{m} \ln \frac{n}{\delta}$$
+and thus by (P1) $M$ includes at least $k+1$ points of $B$.
+
+Part (b) then follows directly by appealing to (P2).
+\end{proof}
+
+\begin{thm}
+Suppose that in round $t$, the starting uncertainty region is $U$. Assume event $G_t$ occurs. Then for all $x \in U$ that aren't queried, the following two properties hold.
+\begin{enumerate}
+\item[(a)] If $x \in \X_{p, 2k^{-1/2}}$, then by the end of the round, its label is inferred to be $g^*(x)$.
+\item[(b)] If the label of $x$ is inferred but is not equal to $g^*(x)$, then $x \not\in \X_{p, k^{-1/2}}$.
+\end{enumerate}
+\end{thm}
+\begin{proof}
+Pick any $x \in U$ whose label is not queried by the end of round $t$. By Lemma~\ref{lemma:bias-bound}, its $k$ nearest neighbors in $M$ lie within distance $\widetilde{r}(x) \leq r_p(x)$, and its $k$ nearest neighbors have average label in the range $\eta(B(x, \widetilde{r}(x))) \pm k^{-1/2}$. 
+
+For part (a), observe that by the definition of $\X_{p,\gamma}$, this average label has sign $g^*(x)$ and absolute value $> k^{-1/2}$. Thus the bias is significant and the label of $x$ is correctly inferred.
+
+For part (b), we observe that if $x \in \X_{p, k^{-1/2}}$, then the average label of $x$'s $k$ nearest neighbors would have the correct sign, $g^*(x)$.
+\end{proof}
+
+\subsection{A simple active learning loop}
+
+Here's a simple idea: keep $k$ fixed, with the goal of trying to correctly classify all $x \in \X_{p,\gamma}$ with $p > 1/n$ and $\gamma > 1/\sqrt{k}$. We won't quite be able to do this because of mind-changes.
+
+\begin{itemize}
+\item Given: $X$, $\gamma$, $\delta$
+\item $k = 1/\gamma^2$
+\item $Q = I = \emptyset$
+\item for $t = 0, 1, \ldots, \log n$:
+\begin{itemize}
+\item $p_t = 1/c^t$
+\item $\delta_t = \delta/(1 + \log n)$
+\item Extend($k$, $p_t$, $\delta_t$)
+\end{itemize}
+\end{itemize}
+
+Let's start by analyzing this in the case where there are no mind-changes.
+
+\subsection{Analysis: no mind changes}
+
+Fix $\gamma = k^{-1/2}$. For $\tilde{p} \sim 1/n$, define $\widetilde{\X}^+ = \X_{\tilde{p}, \gamma}$ and likewise $\widetilde{\X}^-$. Then $\widetilde{\X} = \widetilde{\X}^+ \cup \widetilde{\X}^-$ is exactly the set of points that could reasonably be expected to be correctly classified by a $k$-NN classifier with access to all the labels in $X$. We'd like to do almost as well after querying just a fraction of the labels.
+
+\begin{enumerate}
+\item {\it No mind changes.} We will assume no mind-changes: that is, for any $r>0$,
+\begin{itemize}
+\item $x \in \widetilde{\X}^+ \implies \eta(B(x,r)) > 1/2 - \gamma$
+\item $x \in \widetilde{\X}^- \implies \eta(B(x,r)) < 1/2 + \gamma$
+\end{itemize}
+This means that no point in $\widetilde{\X}$ will ever be misclassified.
+
+\item {\it After round $t$.} At the end of round $t$, every point in $\X_{p_t, \gamma}$ will either have been queried or will have had its label correctly inferred. What remains, at most, is then $\partial_{p_t, \gamma}$, where we define
+$$ \partial_{p, \gamma} = \X \setminus \X_{p, \gamma} .$$
+The sampling region in the next round is then $S_{t+1} \subset R_{t+1} \cap X$, where
+$$ R_{t+1} = \bigcup_{x \in \partial_{p_t, \gamma}} B(x, r_{p_{t+1}}(x))  .$$
+
+\item {\it Smoothness condition.} Recall our nearest neighbor-inspired variant of the Holder condition: $\eta$ is $(\alpha, L)$-smooth if for all $x \in \supp(\mu)$ and all $r > 0$,
+$$ |\eta(B(x,r)) - \eta(x)| \leq L \mu(B^o(x,r))^\alpha .$$
+In [CD14], it is shown that under this condition, for any $p, \gamma$, we have
+$$ \partial_{p,\gamma} \cap \supp(\mu) \subset \{x: |\eta(x) - 1/2| \leq \gamma + Lp^\alpha\} .$$
+
+Here's a stronger condition: for all $x \in \supp(\mu)$ and all $r > 0$,
+$$ |\eta(x') - \eta(x)| \leq L \mu(B^o(x,r))^\alpha \ \ \mbox{for all $x' \in B(x,r)$}.$$
+Under this condition, it easily follows that
+$$ \bigcup_{x \in \partial_{p_1, \gamma}} B(x, r_{p_2}(x)) \ \subset \ \{x: |\eta(x) - 1/2| \leq \gamma + L(p_1^\alpha + p_2^\alpha)\} .$$
+\item {\it Margin condition.} For $\beta > 0$, we say $(\mu, \eta)$ satisfies the $\beta$-margin condition if there exists a constant $C > 0$ such that for any $t$,
+$$ \mu(\{x: |\eta(x) - 1/2| \leq t\}) \leq C t^\beta .$$
+
+\item {\it Bounding the size of the sampling region.} Under the strong smoothness condition, we have
+$$ R_{t+1} \subset  \{x: |\eta(x) - 1/2| 
+\ \leq \ 
+\gamma + L(p_t^\alpha + (p_t/c)^\alpha)\} .$$
+Define $L' = L(1 + c^{-\alpha})$. Under the margin condition, we then get
+$$ \mu(R_{t+1}) 
+\ \leq \ 
+C (\gamma + L' p_t^\alpha)^\beta 
+\ \leq \ 
+2C \cdot \max \left(\frac{1}{k^{1/2}}, \frac{L'}{c^{\alpha t}} \right)^\beta.
+$$
+Initially (when $t$ is small), the dominant term is $(1/c^{\alpha \beta})^t$. Once $t \geq (1/(2 \alpha)) \log_c k$, the dominant term becomes $1/k^{\beta/2}$.
+
+\item {\it Label complexity analysis under optimal choice of $k$.} Under the smoothness and margin condition, the optimum setting of $k$ is $n^{2\alpha/(2\alpha+1)}$. 
+
+
+\end{enumerate}
+
+
+\end{document}

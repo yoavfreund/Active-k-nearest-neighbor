@@ -1,0 +1,52 @@
+\documentclass[12pt]{colt2023} %% Anonymized submission
+\usepackage{times}
+\begin{document}
+\title{}
+This is a response to reviewers 2, 3, 4 (we haven't received Review 1).
+
+\vspace{.1in}
+
+\noindent
+{\bf Reviewer 2:} 
+
+\noindent
+\emph{Finiteness of the metric space?} We are given a finite set of points $X$ to begin with; the set of balls on these points, $\mathcal{B}$, is effectively finite.
+
+\noindent
+\emph{Connection to paper of Balsubramani et al?} We were indeed inspired by this earlier work; but that paper was not about active learning and doesn't directly yield a good active learning method. For instance, that paper assesses the status of a point $x$ using balls \emph{centered} at $x$, whereas for us it is crucial to use balls \emph{containing} $x$ but possibly centered elsewhere. Our three key challenges (section 1.2) are all specific to active learning and demand new approaches. 
+
+\vspace{.1in}
+\noindent
+{\bf Reviewer 3:} 
+
+\noindent
+\emph{Questions about the algorithm:} A \emph{background query} is drawn at random from the entire data space while a \emph{focused query} is drawn from the current region of uncertainty (top of section 2.3). In Figure 3, each data point $x$ has an associated random variable $T_x$ drawn uniformly on $[0,1]$. The data points are ordered according to these values. The goal of this technical trick is to ensure that queries for any ball are drawn independently at random.
+
+\noindent
+\emph{Instantiations of Theorem 4:} Indeed, the theorem is pretty abstract. We give three concrete instantiations: two one-dimensional scenarios and a higher dimensional scenario with Massart noise and a curvature condition on the boundary (sec 4.3). It's also easy to give an instantiation under smoothness and Tsybakov noise (see below for Reviewer 4), which we plan to add in.
+
+\noindent
+\emph{Constants in Theorem 5:} Say the fraction of the data with $\eta$ value in $[0,0.4)$, $[0.4, 0.5)$, $(0.5, 0.6]$, and $(0.6,1]$ is $40\%, 10\%, 10\%, 40\%$ respectively. Then $n^- = n^+ = 0.4n$ and $r^- = r^+ = 0.1n$.
+
+\noindent
+\emph{Underlying assumptions?} Our \emph{algorithm} is pretty general, unlike many active learning procedures that make sense only under smoothness conditions, for instance. But our \emph{bounds} do need (smoothness or other) assumptions, as is inevitable in nonparametric estimation.
+
+\noindent
+\emph{More discussion:} We agree that the theorems and results need more discussion. We will figure out how to squeeze this in!
+
+\vspace{.1in}
+\noindent
+{\bf Reviewer 4:} 
+
+\noindent
+\emph{More discussion of results:} Some intuition behind the algorithm is in the introduction. The theorems are another matter, and certainly warrant more discussion. We will add this somehow!
+
+\noindent
+\emph{Theorem 9:} In Theorem 9, the rate of convergence is controlled by two parameters: $\sigma, \xi$ (the other constants are either inherent in the problem, like the number of points $n$ or data dimension $d$, or are absolute constants, like $C$). Both $\sigma$ and $\xi$ are exponents in analogs of the Tsybakov margin condition; the difference is that $\xi$ ignores all points whose $\eta$ value lies in $[1/2-\gamma, 1/2+\gamma]$, the range in which any prediction is acceptable.
+
+We will also add another instantiation of Theorem 9, using a strong density assumption (as before), curvature condition on boundary (as before), Holder-smoothness (with exponent $\alpha$) and Tsybakov margin (with exponent $\beta$). In this case, it is easy to show that $\sigma = \xi = \alpha\beta$. We will add this to the main paper or the appendix, depending on space constraints.
+
+\noindent
+\emph{Related work:} A discussion of related work appears in Section 1.4, but this focuses on \emph{algorithmic strategies} rather than \emph{bounds}. One that is directly comparable, but is a special case, is Castro-Nowak (as mentioned at the bottom of page 12, we get similar bounds). But other work is hard to compare since the assumptions are different and specialized. For instance, Minsker has a special smoothness condition, Kpotufe et al have a probabilistic Lipschitz condition, etc. It is hard to bridge these gaps.
+
+\end{document}
