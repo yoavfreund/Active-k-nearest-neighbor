@@ -1,0 +1,16 @@
+=== current ==
+
+\item For each $x \in X$ and level $\ell \geq 0$ for which all $\{\yh(B): B \in \B_\ell(x)\}$ are available:
+\begin{align}
+\PL_\ell(x) &= \{s \in \{-1, +1\}: \ \mbox{there exists $B \in \B_{\leq \ell}(x)$ s.t. $\yh(B) = s$ and} \notag \\ 
+             &                       \hspace{1.5in}\mbox{no $B' \in \B_{\leq \ell}(x)$ has $X_{B'} \subsetneq X_B$.} \} \label{eq:PL} \\ 
+
+=== suggested ===
+
+  \item For each $x \in X$ and level $\ell \geq 0$:
+  \begin{itemize}
+  \item Set $C$ to be the set of balls $B \in \B_{\leq \ell(x)}\}$ for which $\yh(B)$ is available:
+    \item
+    \begin{align}
+    \PL_\ell(x) &= \{s \in \{-1, +1\}: \ \mbox{there exists $B \in C$ s.t. $\yh(B) = s$ and} \notag \\ 
+             &                       \hspace{1.5in}\mbox{no $B' \in C$ such that  $X_{B'} \subset X_B$ and $\yh(B')=-s$} \} \label{eq:PL} \\ 
