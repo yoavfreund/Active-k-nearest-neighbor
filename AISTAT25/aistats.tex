@@ -771,13 +771,30 @@ algorithms~\cite{CN08}.
 \begin{center}
 \includegraphics[width=3in]{figures/MassartExperiment.png}
 \end{center}
-\caption{{\bf Experimental evidence:} This figure compares the performance of passive sampling alone to that of the active learning algorithm. The X axis represents the number of queries made and the Y axis represents the difference between the error achieved and the optimal achievable error. }
+\caption{{\bf Experimental evidence:} This figure compares the
+  performance of passive sampling alone to that of the active learning
+  algorithm. The X axis represents the number of queries made and the
+  Y axis represents the difference between the error achieved and the
+  optimal achievable error.}
 \label{fig:Experiments}
 \end{figure}
 
 \section{Experiments}
 
-We provide experimental evidence that our algorithm works. We chose a simple 1D problem, described in figure~\ref{}. Although this problem is simple, it is outside the scope of algorithms that assume that the conditional probability is smooth.
+We provide some experimental evidence that our algorithm is effective.
+We chose a simple 1D problem, described in figure~\ref{fig:oned}(b)
+(Massard Noise).  Although this problem is simple, it is outside the
+scope of algorithms that assume that the conditional probability is a
+smooth function of $x$. We used a sample of 2000 points and ran our
+algorithm 10 times. In figure~\ref{fig:experiments} we present the
+average error as a function of the number of queries. We compare the
+performance of our active algorithm (red line) and the performance of the passive algorithm which is the
+same algorithm where focused queries are disabled and only backgroud samples are used (blue line).
+
+Observe that the error of the active algorithm decreases rapidly to
+until iteration 600, while it takes 1,500 queries for the passive
+algorithm to reach the same error. This almost three-fold improvement
+demonstrates the effectiveness of our algorithm.
 
 \section{Future Directions}
 
