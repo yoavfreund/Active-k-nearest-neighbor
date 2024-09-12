@@ -160,7 +160,7 @@ biases of balls containing just $x$.
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=3in]{ideas.pdf}
+\includegraphics[width=3in]{figures/ideas.pdf}
 \end{center}
 \caption{(a) A collection of balls $\B$. Ball $B$ has bias $\yh(B) \in \{-1,0,+1\}$. (b) If one ball has bias $+1$ and the other $-1$, points in their intersection are targeted for active querying. (c) Biases of progressively smaller balls containing $x$ might flip sign, leading to \emph{mind changes} about the label of $x$.}
 \label{fig:challenges}
@@ -599,9 +599,9 @@ To apply Theorem~\ref{thm:label-complexity}, we need bounds on the critical leve
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=2.5in]{oned-monotonic.pdf}
+  \includegraphics[width=2.5in]{figures/Monotone.png}
 %\hspace{.5in}
-\includegraphics[width=2.5in]{oned-massart.pdf}
+\includegraphics[width=2.5in]{figures/Massart.png}
 \end{center}
 \caption{(a) The conditional probability function $\eta$ is monotonically increasing; $\eta(x) = -\gamma, 0, \gamma$ at $x = \lambda_L, \lambda, \lambda_R$, respectively. (b) On each subinterval, $\eta$ is either $> \gamma$ or $<-\gamma$.}
 \label{fig:oned}
@@ -766,6 +766,22 @@ $\tilde{O}(1/m^{1/(d-1)})$ rate of this theorem is an improvement over
 the usual $1/m^{1/d}$ rate for random querying and was also observed
 earlier, in a more restricted setting, using specialized
 algorithms~\cite{CN08}.
+
+\begin{figure}
+\begin{center}
+\includegraphics[width=3in]{figures/MassartExperiment.png}
+\end{center}
+\caption{Experimental evidedence}
+\label{fig:Experiments}
+\end{figure}
+
+\section{Experiments}
+
+
+
+\section{Future Directions}
+
+
 
 %\input{active-knn.bbl}
 \bibliography{refs}
