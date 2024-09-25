@@ -310,9 +310,9 @@ completely correct but serves to explain the main components of the
 detailed algorithm. The full description of the algorithm is given in
 subsection~\ref{sec:full description} and appendix~\ref{sec:detailedalgorithm}
 
-\begin{figure*}[t]
+\begin{figure*}[t]{6in}
 \framebox{
-\begin{minipage}[t]{6in}  % Adjusted minipage width slightly
+\begin{minipage}[t]{6in}
 \begin{center}
 \vspace{.1in}
 \textbf{Repeat for $\ell=0,1,2,\ldots,\log |X|-1$:}
@@ -345,7 +345,8 @@ and focused query set $S=\bigcup_{B \in R} B$
 
 \item \label{step:examples} {\bf Update example labels:} For each $x \in U_\ell$:
   \begin{align}
-    \PL_\ell(x) &= \{s \in \{-1, +1\}: \ \text{there exists } B \in B_\ell(x) \text{ such that } \yh(B) = s \} \\ 
+    \PL_\ell(x) &= \{s \in \{-1, +1\}: \\
+               & \text{s.t. there exists } B \in B_\ell(x) \text{ s.t. } \yh(B) = s \} \\ 
     \yh_\ell(x) &= 
                   \begin{cases}
                     +1 & \text{if } \PL_\ell(x) = \{+1\} \\
@@ -504,6 +505,185 @@ the other two challanges, which the detailed algorithm does address.
   can create an undesired dependence between the estimates. This is solved using Poisson sampling, as described in section~\ref{sec:poisson}.
 \end{enumerate}
 
+\section{Detailed algorithm}
+
+We now describe the detailed active learning algorithm as shown in
+Figs~\ref{alg:main}, \ref{alg:sampling} and~\ref{alg:bias-estimate}.
+The algorithm makes two types of query. \emph{Background queries} are random draws
+from $X$ and correspond to passive learning. \emph{Focused queries}
+are made in the vicinity of ``uncertain'' points and correspond to
+active learning.
+
+Many of the elements of the detailed algorithm have been introduced in the simplified version.
+Specifically $U_\ell,S,\PL_\ell(x),\yh_\ell(x)$, are as defined there.
+
+However, in the detailed algorithm all of the levels are considered at each iteration.
+On each iteration of the main loop (at most) one focused
+query is made as well as a background query. The focused query comes
+from the lowest-numbered uncertainty region $U_\ell$ that is nonempty.
+
+Once these queries are made, bias estimates $\widehat{\eta}(B)$ are
+updated using the Poisson method,\\
+$\yh(B), \PL_\ell(x), \yh_\ell(x), U_\ell$ are updated
+accordingly  and the next iteration begins.
+
+The querying process can be stopped at any time, whereupon labels are assigned as follows:
+\begin{equation}
+\yh(x) = 
+\left\{
+\begin{array}{cl}
+  \yh_\ell(x) & \mbox{largest $\ell$ with $\yh_\ell(x) \in \{-1,+1\}$,1}\\
+  & \mbox{if such an $\ell$ exists} \\
+0 & \mbox{``don't know'', otherwise}
+\end{array}
+\right.
+\label{eq:final-label}
+\end{equation}
+
+\subsubsection{Poisson Sampling}
+\label{sec:poisson}
+
+
+The uncertainty region at level $\ell$ consists of the known-unknowns
+from level $\ell-1$, that is, points $x \in X$ with
+$\yh_{\ell-1}(x) = \, !$. This region is revealed to us piecemeal, a
+few points at a time. To get good label complexity we need to actively
+query the part of it we know.
+
+We manage this through \emph{Poisson
+  sampling}~\cite{ghosh2002sampling} (Fig.~\ref{alg:sampling}) which
+works as follows. Each instance $x \in X$ is assocciated with a random
+draw from the uniform distribution over $[0,1]$ denoted $T_x$.
+Pooints are sampled in the order of increasing $T_x$ under some
+conditions described below.  Note that restricting the sampled points
+to be from set $A$ and having $T_x \leq \tau$ is the same, in
+expectation to sampling each point in $A$ independently at random with
+probability $\tau$.
+
+To infer the bias of a ball $B$, we need labels for
+$k = \tilde{O}(1/\gamma^2)$ random points in it. Balls at level $\ell$
+have roughly $n/2^{\ell+1}$ points, so we need about $2^{\ell+1} k/n$
+fraction of the ball to be queried. Instead, we query every point in
+the ball with probability $\tau_\ell = \min(2^{\ell+2}k/n, 1)$,
+\emph{independently}. Specifically, we query points $x$ in the ball
+with $T_x \leq \tau_\ell$, where each $x \in X$ is assigned a
+uniform-random value $T_x \in [0,1]$ at the outset of the algorithm.
+
+Once a point is queried, it is never queried again.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{figure}[h]
+\framebox{
+\begin{minipage}[t]{3in}
+
+Initialize uncertainty regions at all levels: $U_0 = X$ and $U_\ell = \emptyset$ for $\ell \geq 1$
+
+%\vspace{.1in}
+
+Initialize labels at all levels to ``unavailable'': \ $\yh_\ell(x) = \bot$ for all $x$ and $\ell \geq 0$
+
+%\vspace{.1in}
+
+Repeat:
+\begin{itemize}[leftmargin=0.5cm]
+\item If there is a level $\ell \geq 0$ such that $U_\ell \neq \emptyset$:
+\begin{itemize}[leftmargin=0.25cm]
+\item For the smallest such level $\ell'$, run {\tt Focused-query}($\ell', U_{\ell'}$) // Fig.~\ref{alg:sampling}
+\end{itemize}
+\item Run {\tt Background-query} // Fig.~\ref{alg:sampling}
+\item Update labels:
+\begin{itemize}[leftmargin=0.25cm]
+\item Update bias-estimates $\yh(B)$ // Fig.~\ref{alg:bias-estimate}
+\item For each $x \in X$ and level $\ell \geq 0$ for which all $\{\yh(B): B \in \B_\ell(x)\}$ are available:
+\begin{align}
+  \PL_\ell(x) &= \{s \in \{-1, +1\}: \\
+             & \mbox{there exists $B \in \B_{\leq \ell}(x)$ s.t. $\yh(B) = s$ and} \notag \\ 
+             & \mbox{no $B' \in \B_{\leq \ell}(x)$ has $X_{B'} \subsetneq X_B$.} \} \label{eq:PL} \\ 
+\yh_\ell(x) &= 
+\left\{
+\begin{array}{cl}
++1 & \mbox{if $\PL_\ell(x) = \{+1\}$} \\
+-1 &  \mbox{if $\PL_\ell(x) = \{-1\}$} \\
+0 & \mbox{if $\PL_\ell(x) = \{\}$} \\
+! & \mbox{if $\PL_\ell(x) = \{-1,+1\}$}
+\end{array}
+\right.
+\label{eq:provisional-label}
+\end{align}
+
+\end{itemize}
+\item Update uncertainty regions:
+\begin{itemize}[leftmargin=0.25cm]
+\item $U_0 = \{x \in X: \yh_0(x) = \bot\}$
+\item For all levels $\ell \geq 1$: \ $U_\ell = \{x \in X: \yh_{\ell-1}(x) = \,!, \ \yh_\ell(x) = \bot\}$
+\end{itemize}
+\end{itemize}
+
+\end{minipage}
+%\end{center}
+%\end{minipage}
+}
+\caption{The active learning algorithm. Each iteration of the main loop makes (at most) one focused query and one background query.}
+\label{alg:main}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{figure}[t]
+\framebox{
+\begin{minipage}[t]{3in}
+
+\vspace{.05in}
+\emph{Initialization:}
+\begin{itemize}[leftmargin=0.5cm]
+\item Set $Q = \emptyset$ (points queried so far)
+\item For each $x \in X$: choose $T_x \sim \mbox{uniform}([0,1])$
+\end{itemize}
+
+\vspace{.05in}
+{\bf Background-query}
+
+\begin{itemize}[leftmargin=0.5cm]
+\item Query the next unlabeled point in $X \setminus Q$, ordered by increasing $T_x$ values, and add to $Q$
+\end{itemize}
+
+\vspace{.05in}
+{\bf Focused-query}($\ell, U$)
+
+\begin{itemize}[leftmargin=0.5cm]
+\item Define querying region:
+$$ S =  \bigcup_{x \in U} \bigcup_{B \in \B_\ell(x)} \{z \in X_B: T_z \leq \tau_\ell\} $$
+\item Query the next unlabeled point in $S \setminus Q$, ordered by increasing $T_x$ values, and add to $Q$
+\end{itemize}
+
+\end{minipage}}
+\caption{The two sampling procedures. Each $x \in X$ has an associated r.v. $T_x$ drawn uniformly from $[0,1]$. The smaller $T_x$, the earlier $x$ is likely to be queried. \emph{Background queries} are drawn at random from $X$. \emph{Focused queries} are from the uncertainty region at a given level $\ell$, and use level-based thresholds $\tau_\ell = \min(2^{\ell+2}k/n, 1)$, where $k = \tilde{O}(1/\gamma^2)$.} 
+\label{alg:sampling}
+\end{figure}
+
+
+\begin{figure}
+\framebox{
+\begin{minipage}[t]{3in}
+\vspace{.05in}
+\begin{itemize}[leftmargin=0.25cm]
+\item Initially $\yh(B) = \bot$
+\item When all of $\{z \in X_B: T_z \leq \tau_\ell\}$ is queried, let $\widehat{\eta}(B)$ be the mean of these labels and set
+$$ \yh(B)
+= 
+\left\{
+\begin{array}{ll}
+\sign(\widehat{\eta}(B)) & \mbox{if $|\widehat{\eta}(B)| \geq \gamma/2$} \\
+0 & \mbox{otherwise}
+\end{array}
+\right.
+$$
+\end{itemize}
+\end{minipage}}
+\caption{The qualitative bias $\yh(B)$ of a ball $B \in \B_\ell$; see Fig.~\ref{alg:sampling} for $\tau_\ell$.}
+\label{alg:bias-estimate}
+\end{figure}
 
 \section{Analysis: finite population setting}
 \label{sec:discrete}
@@ -674,106 +854,14 @@ If $n^+, n^- = \Theta(n)$, that is, a constant fraction of the points lie to the
 In Section~\ref{sec:oned-massart}, we develop another one-dimensional example, in which $\X$ consists of several pieces, such that on each piece $\eta$ is either entirely above $\gamma$ or entirely below $-\gamma$ (Fig.~\ref{fig:oned}(b)). Once again, a logarithmic label complexity is obtained.
 
 
-\section{Analysis: distributional setting}
-\label{sec:continuous}
-
-We now turn to a setting where the points $X$ are drawn from some distribution $\mu$ on a topological space $\X$. For the same algorithm, we bound label complexity in terms of properties of $\mu$ and $\eta$. 
-
-\subsection{A sufficiently-rich collection of balls}
-
-Let $\B$ be a finite collection of subsets of $\X$; we spell out a basic property we need it to possess.
-
-\begin{defn}
-We say $\B$ is \emph{$k$-conforming} with respect to $X$ if 
-\begin{itemize}
-\item ({\bf Richness}) For any $x \in X$, there exists $B \in \B_0(x)$. Moreover, for any level $0 \leq \ell \leq \lg (n/k)$ and any $B \in \B_\ell(x)$, there exists $B' \in \B_{\ell+1}(x)$ such that $X_{B'} \subset X_B$.
-\item ({\bf Fidelity}) $\mu(B)/2 \leq |X_B|/n \leq 2\mu(B)$ for all $B \in \B$ with $|X_B| \geq k$.
-\end{itemize}
-\label{defn:conformity}
-\end{defn}
-When $\B$ consists of Euclidean balls in $\R^d$, made finite by restricting to $X$, the first property is immediate and the second holds with high probability (Lemma~\ref{lemma:ball-size-bounds}). We also envisage scenarios where $\B$ is constructed using $X$, for instance from the cells of multiple spatial partition trees.
-
-Henceforth assume $\B$ satisfies this property.  We ignore $B$ with $|X_B| < k$, thereby restricting attention to levels $0 \leq \ell < \lg (n/k)$.
-
-\subsection{A probabilistic notion of distance}
-
-A crucial step in the analysis is to introduce a distance function based on $\mu$: the distance from a point $x$ to a set $S$ is the probability mass of the smallest ball that contains $x$ and touches $S$.
-\begin{defn}
-For any $x \in \X$ and $S \subset \X$, define
-$\dist(x,S) = \inf \{\mu(B): B \in \B(x), B \cap S \neq \emptyset\} .$
-\label{defn:prob-dist}
-\end{defn}
-We will see that $L_2(x)$ can be bounded in terms of such distances. In what follows, for $s \in \{-1,0,+1\}$, take $\X^s$ to denote $\{x \in \X: \sign(\eta(x)) = s\}$.
-\begin{lemma}
-For any $x \in \X$, let $s(x) = \sign(\eta(x))$. If $\dist(x, \X^{-s(x)}) \geq 2k/n$, then
-$L_2(x) \leq \bigg\lceil \lg \frac{1}{\dist(x, \X^{-s(x)})} \bigg\rceil + 1$.
-\label{lemma:L2-bound}
-\end{lemma}
-We will also use probabilistic distance to define notions of boundary. Take the $p$-boundary to consist of points at distance $\leq p$ from points of the opposite label.
-\begin{defn}
-For any $p > 0$, define $\partial_p = \{x \in \X: \dist(x, \X^{-s(x)}) \leq p\}$.
-\label{defn:boundary}
-\end{defn}
-This includes all $x$ with $\eta(x) = 0$. Next, the $(p,q)$-boundary consists of points at distance $\leq q$ from the $p$-boundary.
-\begin{defn}
-For any $p,q > 0$, define $\partial_{p,q} = \{x \in \X: \dist(x, \partial_p) \leq q\}$.
-\label{defn:boundary2}
-\end{defn}
-
-We can bound $\Delta_\ell$, the query region at level $\ell$, in terms of this second-order boundary.
-\begin{lemma}
-For any $0 \leq \ell \leq \lg (2n/k)$, we have $\Delta_\ell \subset \partial_{4/2^\ell, 2/2^\ell}$.
-\label{lemma:delta-continuous}
-\end{lemma}
-Theorem~\ref{thm:label-complexity} thus still holds with $n \cdot \mu(\partial_{4/2^\ell, 2/2^\ell})$ in place of $|\Delta_\ell|$; see Theorem~\ref{thm:label-complexity-dist} in the Appendix. 
-
-Using these notions, we are able to specialize the generic label complexity bound of Theorem~\ref{thm:label-complexity} to get rates under suitable margin conditions; this is given in Theorem~\ref{thm:label-complexity-specific} in the appendix. Here we just give a concrete scenario handled by the latter result; another such scenario, with smoothness and Tsybakov noise conditions, appears in the appendix.
-
-%\begin{figure}[t]
-%\begin{center}
-%\includegraphics[width=3in]{curvature.pdf}
-%\end{center}
-%\caption{{\bf A 2D example with bounded curvature:} {\em Left:} We have $\eta = -0.2$ for the orange/red part of the domain and $\eta=0.2$ for the light and dark blue. The orange and light blue indicate the boundary sets for negative and positive respectively. {\em Right:} examples of the $L_1,L_2$ balls for different points. The green $L_1$ circles are the largest monochrome circle that contains the point. The purple $L_2$ circles are the union of all circles of half the radius or smaller. All of these circles are monochrome.}
-%\label{fig:curvature}
-%\end{figure}
-
-
-\subsection{Example: Curvature and Massart noise}
-\label{sec:Massart}
-
-By way of example, consider a case where $\X \subset \R^d$ and $\mu$ admits a density. We take $\B$ to consist of all open balls $B(x,r) = \{z: \|z-x\| < r\}$ centered in $\X$, with $\B(x)$ being balls that contain $x$. By VC arguments, the size of $\B$ is effectively $O(n^{d+1})$; in practice, this can be reduced to a low-order polynomial using core-sets~\cite{BC03}.
-
-We make two key assumptions: distribution $\mu$ on $\X$ is within a multiplicative factor of uniform; and all of $\X$ has $|\eta(x)| \geq \gamma$ except for a $(d-1)$-dimensional boundary of finite curvature.
-\begin{itemize}[leftmargin=0.5cm]
-\item (Strong density condition)
-There are constants $c_o, c_1 > 0$ such that for all balls $B \in \B$,
-we have $c_o \vol(B) \leq \mu(B) \leq c_1 \vol(B) $, where $\vol(\cdot)$ is $d$-dimensional volume.
-\item (Massart noise and boundary condition) $\X = \X^+ \cup \X^- \cup \X^0$, where: $\eta(x) \geq \gamma$ throughout $\X^+$; $\eta(x) \leq -\gamma$ throughout $\X^-$; and $\X^0$ separates (intersects any line between) $\X^+$ and $\X^-$ and is a $(d-1)$-dimensional Riemannian manifold of reach $r_o > 0$.
-\end{itemize}
-The \emph{reach} condition says that any point at distance $< r_o$ of $\X^0$ has a unique nearest neighbor on $\X^0$. It is a common notion of curvature~\cite{F59,NSW06} and implies that $\X^+$ (resp., $\X^-$) can be covered by open balls of radius $r_o$ that do not touch $\X^- \cup \X^0$ (resp., $\X^+ \cup \X^0$). A 2D example obeying these conditions appears in Figure~\ref{fig:curvature}.
-\begin{thm}
-  Under the two conditions above, there are constants $c_2, c_3$ for
-  which the following holds. Pick $0 < \delta < 1$ and take
-  $k = O(((d \log n) + \log (1/\delta))/\gamma^2)$. If the algorithm
-  of Fig.~\ref{alg:main} makes $c_2k \leq m \leq c_3 n^{(d-1)/d}$
-  queries, it assigns Bayes-optimal labels to all but
-  $C (k/m)^{1/(d-1)} + (2/n) \log (4/\delta)$ fraction of $X$.
-\label{thm:massart-dist}
-\end{thm}
-
- Here the constant $c_2$ includes a term $(1/r_o)^d$. The
-$\tilde{O}(1/m^{1/(d-1)})$ rate of this theorem is an improvement over
-the usual $1/m^{1/d}$ rate for random querying and was also observed
-earlier, in a more restricted setting, using specialized
-algorithms~\cite{CN08}.
 
 \begin{figure}
 \begin{center}
-\includegraphics[width=3in]{figures/MassartExperiment.png}
+\includegraphics[width=3in]{figures/MassartExperiment5.png}
 \end{center}
 \caption{{\bf Experimental evidence:} This figure compares the
   performance of passive sampling alone to that of the active learning
-  algorithm. The X axis represents the number of queries made and the
+  algorithm. The X axis corresponds to the number of queries made and the
   Y axis represents the difference between the error achieved and the
   optimal achievable error.}
 \label{fig:Experiments}
@@ -781,23 +869,35 @@ algorithms~\cite{CN08}.
 
 \section{Experiments}
 
-We provide some experimental evidence that our algorithm is effective.
+In this section we provide experimental evidence that our algorithm has low query complexity.
 We chose a simple 1D problem, described in figure~\ref{fig:oned}(b)
 (Massard Noise).  Although this problem is simple, it is outside the
 scope of algorithms that assume that the conditional probability is a
-smooth function of $x$. We used a sample of 2000 points and ran our
-algorithm 10 times. In figure~\ref{fig:experiments} we present the
+smooth function of $x$. We used a sample of 10,000 points and ran our
+algorithm 20 times. In figure~\ref{fig:experiments} we present the
 average error as a function of the number of queries. We compare the
 performance of our active algorithm (red line) and the performance of the passive algorithm which is the
 same algorithm where focused queries are disabled and only backgroud samples are used (blue line).
 
-Observe that the error of the active algorithm decreases rapidly to
-until iteration 600, while it takes 1,500 queries for the passive
-algorithm to reach the same error. This almost three-fold improvement
-demonstrates the effectiveness of our algorithm.
+Number of queries as a function of the accuracy for passive and active algorithms.
+\begin{tabular}{|c|rr|c|}
+\hline
+err-opt &  Active&  Passive \\
+\hline
+0.02  &    320 &     517 \\
+0.01 &     429 &    1035 \\
+0.005 &678 &    2045 & \\
+\hline
+\end{tabular}
 
 \section{Future Directions}
-
+Our algorithm is generic, while we used euclidean balls for clarity,
+any sets can be used. While this generality is attractive, it leaves
+open the question of what are good ways to define the collection of
+regions. Another aspect of this generality is that the computational
+complexity of the algorithm is high. Future work will be directed
+towards characterizing region sets that give both high query
+efficiency and low computational complexity.
 
 
 %\input{active-knn.bbl}
@@ -891,187 +991,6 @@ demonstrates the effectiveness of our algorithm.
 \LARGE{Non-parametric active learning without smoothness\\
 Supplementary Materials}
 \end{center}
-\section{Detailed algorithm}
-
-We now describe the detailed active learning algorithm as shown in
-Figs~\ref{alg:main}, \ref{alg:sampling} and~\ref{alg:bias-estimate}.
-The algorithm makes two types of query. \emph{Background queries} are random draws
-from $X$ and correspond to passive learning. \emph{Focused queries}
-are made in the vicinity of ``uncertain'' points and correspond to
-active learning.
-
-Many of the elements of the detailed algorithm have been introduced in the simplified version.
-Specifically $U_\ell,S,\PL_\ell(x),\yh_\ell(x)$, are as defined there.
-
-However, in the detailed algorithm all of the levels are considered at each iteration.
-On each iteration of the main loop (at most) one focused
-query is made as well as a background query. The focused query comes
-from the lowest-numbered uncertainty region $U_\ell$ that is nonempty.
-
-Once these queries are made, bias estimates $\widehat{\eta}(B)$ are
-updated using the Poisson method,\\
-$\yh(B), \PL_\ell(x), \yh_\ell(x), U_\ell$ are updated
-accordingly  and the next iteration begins.
-
-The querying process can be stopped at any time, whereupon labels are assigned as follows:
-\begin{equation}
-\yh(x) = 
-\left\{
-\begin{array}{cl}
-\yh_\ell(x) & \mbox{largest $\ell$ with $\yh_\ell(x) \in \{-1,+1\}$, if such an $\ell$ exists} \\
-0 & \mbox{``don't know'', otherwise}
-\end{array}
-\right.
-\label{eq:final-label}
-\end{equation}
-
-\subsubsection{Poisson Sampling}
-\label{sec:poisson}
-
-
-The uncertainty region at level $\ell$ consists of the known-unknowns
-from level $\ell-1$, that is, points $x \in X$ with
-$\yh_{\ell-1}(x) = \, !$. This region is revealed to us piecemeal, a
-few points at a time. To get good label complexity we need to actively
-query the part of it we know.
-
-We manage this through \emph{Poisson
-  sampling}~\cite{ghosh2002sampling} (Fig.~\ref{alg:sampling}) which
-works as follows. Each instance $x \in X$ is assocciated with a random
-draw from the uniform distribution over $[0,1]$ denoted $T_x$.
-Pooints are sampled in the order of increasing $T_x$ under some
-conditions described below.  Note that restricting the sampled points
-to be from set $A$ and having $T_x \leq \tau$ is the same, in
-expectation to sampling each point in $A$ independently at random with
-probability $\tau$.
-
-To infer the bias of a ball $B$, we need labels for
-$k = \tilde{O}(1/\gamma^2)$ random points in it. Balls at level $\ell$
-have roughly $n/2^{\ell+1}$ points, so we need about $2^{\ell+1} k/n$
-fraction of the ball to be queried. Instead, we query every point in
-the ball with probability $\tau_\ell = \min(2^{\ell+2}k/n, 1)$,
-\emph{independently}. Specifically, we query points $x$ in the ball
-with $T_x \leq \tau_\ell$, where each $x \in X$ is assigned a
-uniform-random value $T_x \in [0,1]$ at the outset of the algorithm.
-
-Once a point is queried, it is never queried again.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\begin{figure}[h]
-  \begin{framebox}
-%    \begin{minipage}
-% [t]{6in}
-%\begin{center}
-%\begin{minipage}[t]{6in}
-%\vspace{.05in}
-
-Initialize uncertainty regions at all levels: $U_0 = X$ and $U_\ell = \emptyset$ for $\ell \geq 1$
-
-%\vspace{.1in}
-
-Initialize labels at all levels to ``unavailable'': \ $\yh_\ell(x) = \bot$ for all $x$ and $\ell \geq 0$
-
-%\vspace{.1in}
-
-Repeat:
-\begin{itemize}[leftmargin=0.5cm]
-\item If there is a level $\ell \geq 0$ such that $U_\ell \neq \emptyset$:
-\begin{itemize}[leftmargin=0.25cm]
-\item For the smallest such level $\ell'$, run {\tt Focused-query}($\ell', U_{\ell'}$) // Fig.~\ref{alg:sampling}
-\end{itemize}
-\item Run {\tt Background-query} // Fig.~\ref{alg:sampling}
-\item Update labels:
-\begin{itemize}[leftmargin=0.25cm]
-\item Update bias-estimates $\yh(B)$ // Fig.~\ref{alg:bias-estimate}
-\item For each $x \in X$ and level $\ell \geq 0$ for which all $\{\yh(B): B \in \B_\ell(x)\}$ are available:
-\begin{align}
-\PL_\ell(x) &= \{s \in \{-1, +1\}: \ \mbox{there exists $B \in \B_{\leq \ell}(x)$ s.t. $\yh(B) = s$ and} \notag \\ 
-             &                       \hspace{1.5in}\mbox{no $B' \in \B_{\leq \ell}(x)$ has $X_{B'} \subsetneq X_B$.} \} \label{eq:PL} \\ 
-\yh_\ell(x) &= 
-\left\{
-\begin{array}{cl}
-+1 & \mbox{if $\PL_\ell(x) = \{+1\}$} \\
--1 &  \mbox{if $\PL_\ell(x) = \{-1\}$} \\
-0 & \mbox{if $\PL_\ell(x) = \{\}$} \\
-! & \mbox{if $\PL_\ell(x) = \{-1,+1\}$}
-\end{array}
-\right.
-\label{eq:provisional-label}
-\end{align}
-
-\end{itemize}
-\item Update uncertainty regions:
-\begin{itemize}[leftmargin=0.25cm]
-\item $U_0 = \{x \in X: \yh_0(x) = \bot\}$
-\item For all levels $\ell \geq 1$: \ $U_\ell = \{x \in X: \yh_{\ell-1}(x) = \,!, \ \yh_\ell(x) = \bot\}$
-\end{itemize}
-\end{itemize}
-
-%\end{minipage}
-%\end{center}
-%\end{minipage}
-\end{framebox}
-\caption{The active learning algorithm. Each iteration of the main loop makes (at most) one focused query and one background query.}
-\label{alg:main}
-\end{figure}
-
-%%%%%%%%%%%%%%%%%%%%%%%
-
-\begin{figure}[t]
-\framebox{
-\begin{minipage}[t]{6in}
-
-\vspace{.05in}
-\emph{Initialization:}
-\begin{itemize}[leftmargin=0.5cm]
-\item Set $Q = \emptyset$ (points queried so far)
-\item For each $x \in X$: choose $T_x \sim \mbox{uniform}([0,1])$
-\end{itemize}
-
-\vspace{.05in}
-{\bf Background-query}
-
-\begin{itemize}[leftmargin=0.5cm]
-\item Query the next unlabeled point in $X \setminus Q$, ordered by increasing $T_x$ values, and add to $Q$
-\end{itemize}
-
-\vspace{.05in}
-{\bf Focused-query}($\ell, U$)
-
-\begin{itemize}[leftmargin=0.5cm]
-\item Define querying region:
-$$ S =  \bigcup_{x \in U} \bigcup_{B \in \B_\ell(x)} \{z \in X_B: T_z \leq \tau_\ell\} $$
-\item Query the next unlabeled point in $S \setminus Q$, ordered by increasing $T_x$ values, and add to $Q$
-\end{itemize}
-
-\end{minipage}}
-\caption{The two sampling procedures. Each $x \in X$ has an associated r.v. $T_x$ drawn uniformly from $[0,1]$. The smaller $T_x$, the earlier $x$ is likely to be queried. \emph{Background queries} are drawn at random from $X$. \emph{Focused queries} are from the uncertainty region at a given level $\ell$, and use level-based thresholds $\tau_\ell = \min(2^{\ell+2}k/n, 1)$, where $k = \tilde{O}(1/\gamma^2)$.} 
-\label{alg:sampling}
-\end{figure}
-
-
-\begin{figure}
-\framebox{
-\begin{minipage}[t]{6in}
-\vspace{.05in}
-\begin{itemize}[leftmargin=0.25cm]
-\item Initially $\yh(B) = \bot$
-\item When all of $\{z \in X_B: T_z \leq \tau_\ell\}$ is queried, let $\widehat{\eta}(B)$ be the mean of these labels and set
-$$ \yh(B)
-= 
-\left\{
-\begin{array}{ll}
-\sign(\widehat{\eta}(B)) & \mbox{if $|\widehat{\eta}(B)| \geq \gamma/2$} \\
-0 & \mbox{otherwise}
-\end{array}
-\right.
-$$
-\end{itemize}
-\end{minipage}}
-\caption{The qualitative bias $\yh(B)$ of a ball $B \in \B_\ell$; see Fig.~\ref{alg:sampling} for $\tau_\ell$.}
-\label{alg:bias-estimate}
-\end{figure}
 
 %%%%%%%%%%%%
 \section{Analysis Details: Discrete setting}
@@ -1431,6 +1350,99 @@ Using Lemma~\ref{lemma:oned-massart-L}, we have that in every target interval $I
 \end{proof}
 
 The $2k$ points nearest each boundary cannot be labeled by our algorithm with any certainty because they lie in intervals with a strongly positive bias as well as in intervals with a strongly negative bias. This qualification would be removed if were allowed to make multiple queries to each point, because in that case we would include $O(k)$ copies of each point, as explained earlier.
+
+\section{Analysis: distributional setting}
+\label{sec:continuous}
+
+We now turn to a setting where the points $X$ are drawn from some distribution $\mu$ on a topological space $\X$. For the same algorithm, we bound label complexity in terms of properties of $\mu$ and $\eta$. 
+
+\subsection{A sufficiently-rich collection of balls}
+
+Let $\B$ be a finite collection of subsets of $\X$; we spell out a basic property we need it to possess.
+
+\begin{defn}
+We say $\B$ is \emph{$k$-conforming} with respect to $X$ if 
+\begin{itemize}
+\item ({\bf Richness}) For any $x \in X$, there exists $B \in \B_0(x)$. Moreover, for any level $0 \leq \ell \leq \lg (n/k)$ and any $B \in \B_\ell(x)$, there exists $B' \in \B_{\ell+1}(x)$ such that $X_{B'} \subset X_B$.
+\item ({\bf Fidelity}) $\mu(B)/2 \leq |X_B|/n \leq 2\mu(B)$ for all $B \in \B$ with $|X_B| \geq k$.
+\end{itemize}
+\label{defn:conformity}
+\end{defn}
+When $\B$ consists of Euclidean balls in $\R^d$, made finite by restricting to $X$, the first property is immediate and the second holds with high probability (Lemma~\ref{lemma:ball-size-bounds}). We also envisage scenarios where $\B$ is constructed using $X$, for instance from the cells of multiple spatial partition trees.
+
+Henceforth assume $\B$ satisfies this property.  We ignore $B$ with $|X_B| < k$, thereby restricting attention to levels $0 \leq \ell < \lg (n/k)$.
+
+\subsection{A probabilistic notion of distance}
+
+A crucial step in the analysis is to introduce a distance function based on $\mu$: the distance from a point $x$ to a set $S$ is the probability mass of the smallest ball that contains $x$ and touches $S$.
+\begin{defn}
+For any $x \in \X$ and $S \subset \X$, define
+$\dist(x,S) = \inf \{\mu(B): B \in \B(x), B \cap S \neq \emptyset\} .$
+\label{defn:prob-dist}
+\end{defn}
+We will see that $L_2(x)$ can be bounded in terms of such distances. In what follows, for $s \in \{-1,0,+1\}$, take $\X^s$ to denote $\{x \in \X: \sign(\eta(x)) = s\}$.
+\begin{lemma}
+For any $x \in \X$, let $s(x) = \sign(\eta(x))$. If $\dist(x, \X^{-s(x)}) \geq 2k/n$, then
+$L_2(x) \leq \bigg\lceil \lg \frac{1}{\dist(x, \X^{-s(x)})} \bigg\rceil + 1$.
+\label{lemma:L2-bound}
+\end{lemma}
+We will also use probabilistic distance to define notions of boundary. Take the $p$-boundary to consist of points at distance $\leq p$ from points of the opposite label.
+\begin{defn}
+For any $p > 0$, define $\partial_p = \{x \in \X: \dist(x, \X^{-s(x)}) \leq p\}$.
+\label{defn:boundary}
+\end{defn}
+This includes all $x$ with $\eta(x) = 0$. Next, the $(p,q)$-boundary consists of points at distance $\leq q$ from the $p$-boundary.
+\begin{defn}
+For any $p,q > 0$, define $\partial_{p,q} = \{x \in \X: \dist(x, \partial_p) \leq q\}$.
+\label{defn:boundary2}
+\end{defn}
+
+We can bound $\Delta_\ell$, the query region at level $\ell$, in terms of this second-order boundary.
+\begin{lemma}
+For any $0 \leq \ell \leq \lg (2n/k)$, we have $\Delta_\ell \subset \partial_{4/2^\ell, 2/2^\ell}$.
+\label{lemma:delta-continuous}
+\end{lemma}
+Theorem~\ref{thm:label-complexity} thus still holds with $n \cdot \mu(\partial_{4/2^\ell, 2/2^\ell})$ in place of $|\Delta_\ell|$; see Theorem~\ref{thm:label-complexity-dist} in the Appendix. 
+
+Using these notions, we are able to specialize the generic label complexity bound of Theorem~\ref{thm:label-complexity} to get rates under suitable margin conditions; this is given in Theorem~\ref{thm:label-complexity-specific} in the appendix. Here we just give a concrete scenario handled by the latter result; another such scenario, with smoothness and Tsybakov noise conditions, appears in the appendix.
+
+%\begin{figure}[t]
+%\begin{center}
+%\includegraphics[width=3in]{curvature.pdf}
+%\end{center}
+%\caption{{\bf A 2D example with bounded curvature:} {\em Left:} We have $\eta = -0.2$ for the orange/red part of the domain and $\eta=0.2$ for the light and dark blue. The orange and light blue indicate the boundary sets for negative and positive respectively. {\em Right:} examples of the $L_1,L_2$ balls for different points. The green $L_1$ circles are the largest monochrome circle that contains the point. The purple $L_2$ circles are the union of all circles of half the radius or smaller. All of these circles are monochrome.}
+%\label{fig:curvature}
+%\end{figure}
+
+
+\subsection{Example: Curvature and Massart noise}
+\label{sec:Massart}
+
+By way of example, consider a case where $\X \subset \R^d$ and $\mu$ admits a density. We take $\B$ to consist of all open balls $B(x,r) = \{z: \|z-x\| < r\}$ centered in $\X$, with $\B(x)$ being balls that contain $x$. By VC arguments, the size of $\B$ is effectively $O(n^{d+1})$; in practice, this can be reduced to a low-order polynomial using core-sets~\cite{BC03}.
+
+We make two key assumptions: distribution $\mu$ on $\X$ is within a multiplicative factor of uniform; and all of $\X$ has $|\eta(x)| \geq \gamma$ except for a $(d-1)$-dimensional boundary of finite curvature.
+\begin{itemize}[leftmargin=0.5cm]
+\item (Strong density condition)
+There are constants $c_o, c_1 > 0$ such that for all balls $B \in \B$,
+we have $c_o \vol(B) \leq \mu(B) \leq c_1 \vol(B) $, where $\vol(\cdot)$ is $d$-dimensional volume.
+\item (Massart noise and boundary condition) $\X = \X^+ \cup \X^- \cup \X^0$, where: $\eta(x) \geq \gamma$ throughout $\X^+$; $\eta(x) \leq -\gamma$ throughout $\X^-$; and $\X^0$ separates (intersects any line between) $\X^+$ and $\X^-$ and is a $(d-1)$-dimensional Riemannian manifold of reach $r_o > 0$.
+\end{itemize}
+The \emph{reach} condition says that any point at distance $< r_o$ of $\X^0$ has a unique nearest neighbor on $\X^0$. It is a common notion of curvature~\cite{F59,NSW06} and implies that $\X^+$ (resp., $\X^-$) can be covered by open balls of radius $r_o$ that do not touch $\X^- \cup \X^0$ (resp., $\X^+ \cup \X^0$). A 2D example obeying these conditions appears in Figure~\ref{fig:curvature}.
+\begin{thm}
+  Under the two conditions above, there are constants $c_2, c_3$ for
+  which the following holds. Pick $0 < \delta < 1$ and take
+  $k = O(((d \log n) + \log (1/\delta))/\gamma^2)$. If the algorithm
+  of Fig.~\ref{alg:main} makes $c_2k \leq m \leq c_3 n^{(d-1)/d}$
+  queries, it assigns Bayes-optimal labels to all but
+  $C (k/m)^{1/(d-1)} + (2/n) \log (4/\delta)$ fraction of $X$.
+\label{thm:massart-dist}
+\end{thm}
+
+ Here the constant $c_2$ includes a term $(1/r_o)^d$. The
+$\tilde{O}(1/m^{1/(d-1)})$ rate of this theorem is an improvement over
+the usual $1/m^{1/d}$ rate for random querying and was also observed
+earlier, in a more restricted setting, using specialized
+algorithms~\cite{CN08}.
 
 \section{Analysis Details: distributional setting}
 
