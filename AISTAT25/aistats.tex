@@ -272,6 +272,8 @@ $\frac{|X|}{\gamma^2}\log \frac{1}{\gamma^2}$ which is the expected
   random elements of $X$ until each $x \in X$ has been sampled
   $\frac{1}{\gamma^2}$ times.
 
+The rest of the paper is organized as follows. xxxxxxx
+
 \section{Definitions}
 
 The two basic entities in our algorithm are the collection of points
@@ -777,7 +779,7 @@ A footnote: Our algorithm queries points at most once. However, in some applicat
 
 To apply Theorem~\ref{thm:label-complexity}, we need bounds on the critical levels $L_1(x)$ and $L_2(x)$ for each $x \in X$, and on the size of the sampling region $\Delta_\ell$ at each level $\ell$. We now derive these in some canonical settings.
 
-\begin{figure}
+\begin{figure}[t]
 \begin{center}
   \includegraphics[width=2.5in]{figures/Monotone.png}
 %\hspace{.5in}
@@ -863,32 +865,31 @@ In Section~\ref{sec:oned-massart}, we develop another one-dimensional example, i
   performance of passive sampling alone to that of the active learning
   algorithm. The X axis corresponds to the number of queries made and the
   Y axis represents the difference between the error achieved and the
-  optimal achievable error.}
+  Bayes error.}
 \label{fig:Experiments}
 \end{figure}
 
 \section{Experiments}
 
-In this section we provide experimental evidence that our algorithm has low query complexity.
-We chose a simple 1D problem, described in figure~\ref{fig:oned}(b)
-(Massard Noise).  Although this problem is simple, it is outside the
-scope of algorithms that assume that the conditional probability is a
-smooth function of $x$. We used a sample of 10,000 points and ran our
-algorithm 20 times. In figure~\ref{fig:experiments} we present the
-average error as a function of the number of queries. We compare the
-performance of our active algorithm (red line) and the performance of the passive algorithm which is the
-same algorithm where focused queries are disabled and only backgroud samples are used (blue line).
+We describe an experiment designed to evaluate our algorithm.
+We use a simple 1D problem, described in figure~\ref{fig:oned}(b)
+(Massard Noise).  Although this problem is simple, it is outside the scope of most non-parametric active learning algorithms, which assume smoothness of the conditional probability.
 
-Number of queries as a function of the accuracy for passive and active algorithms.
-\begin{tabular}{|c|rr|c|}
+We compare two algorithms, the "active" agorithm described here, and the "passive" algorithm which uses only "background queries". We denote the difference between the error of the generated classifier and that of the Bayes optimal classifier by $\epsilon$. From the theory, we expect the query complexity of the passive algorithm to be $O(\frac{1}\epsilon})$ and of the active algorithm to be $O(\log (\frac{1}{\epsilon})$. 
+
+
+ For our experiment we used a sample of 10,000 unlabeled points, we repeated each of our experiments 20 times. In Figure~\ref{fig:Experiments} we show the average performance of these experiments. Note the horizontal line segments marked "active vs. passive ... ", these compare the number of queries required by the active and the passive algorithms for different accuracies
+ These numbers are repeated in the following table.
+\begin{tabular}{|c|rr|}
 \hline
 err-opt &  Active&  Passive \\
 \hline
 0.02  &    320 &     517 \\
 0.01 &     429 &    1035 \\
-0.005 &678 &    2045 & \\
+0.005 &678 &    2045 \\
 \hline
 \end{tabular}
+Considering the columns for the Active and Passive algorithms respectively, we see that the experimental query complexities concur with the theoretical predictions.
 
 \section{Future Directions}
 Our algorithm is generic, while we used euclidean balls for clarity,
