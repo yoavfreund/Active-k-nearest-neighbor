@@ -222,15 +222,6 @@ Section~\ref{sec:algorithm} presents the active learning algorithm and Section~\
 
 Section~\ref{sec:continuous} considers the statistical setting where $X$ is drawn from an underlying distribution $\mu$ on $\X$. We give rates of convergence under distributional conditions (Theorem~\ref{thm:label-complexity-specific}), and instantiate them under common assumptions from learning theory and computational geometry.
 
-\iffalse
-\subsection{Results}
-
-%Our algorithm does not require any assumption on the input distribution. In the worst case the number of queries is twice the number of queries of a passive algorithm. We show that under several natural conditions the query complexity of our algorithm is logarithmic in the error.
-
-
-\fi
-
-
 \subsection{Related work} \label{sec:relatedwork}
 
 Existing work on non-parametric active learning yields algorithms that are guaranteed to work when the underlying conditional expectation $\eta(x)$ is smooth in some way. Additional assumptions are often needed.
@@ -272,8 +263,6 @@ $\frac{|X|}{\gamma^2}\log \frac{1}{\gamma^2}$ which is the expected
   random elements of $X$ until each $x \in X$ has been sampled
   $\frac{1}{\gamma^2}$ times.
 
-The rest of the paper is organized as follows. xxxxxxx
-
 \section{Definitions}
 
 The two basic entities in our algorithm are the collection of points
@@ -305,12 +294,13 @@ label. We again partition these balls by sampling-level, so that
 $\B_\ell(x) = \B(x) \cap \B_\ell$.
 
 \section{A general-purpose active learning algorithm}
+\label{sec:algorithm}
 Our algorithm has several intricacies that might make it hard to
 follow at a first read.  We therefor start with a description of a
-simplified version of the algorithm (Fig~\ref{alg:siple}) that is not
+simplified version of the algorithm (Fig~\ref{alg:simple}) that is not
 completely correct but serves to explain the main components of the
-detailed algorithm. The full description of the algorithm is given in
-subsection~\ref{sec:full description} and appendix~\ref{sec:detailedalgorithm}
+detailed algorithm. The detailed algorithm is described in
+subsection~\ref{sec:detailedalgorithm}.
 
 \begin{figure*}[t]{6in}
 \framebox{
@@ -401,7 +391,7 @@ In step~\ref{step:sample} the algorithm queries points inside the
 focus area repeatedly at random.  This step terminates once there are
 $C/\gamma^2$ samples in each of the balls in the focus area.
 
-In step ~\ref{step:balls} associates a label with each ball. The
+Step ~\ref{step:balls} associates a label with each ball. The
 label is one of $\{-1,+1,0\}$.  The labels $+1$ and $-1$ correspond to
 a confident statement that $\eta(B)>0$ and $\eta(B)<0$
 respectively. Finally, the label $0$ indicates that the sign of $B$
@@ -418,9 +408,8 @@ indicates balls with conflicting polarity containing $x$. Points
 labeled ``!'' determine the uncertainty region and the focused query
 region in the following level and the process repeats.
 
-
 \iffalse
-\subsection{Estimating the biases of balls}
+  \subsection{Estimating the biases of balls}
 
 The bias of a ball $B \in \B$ is defined as the average $\eta$ value in it,
 $$ \eta_X(B) = \mbox{average}\{\eta(x): x \in X_B \} .$$
@@ -447,16 +436,6 @@ $$
 The option $\bot$ is used until enough points in $X_B$ have been queried: the required number is $k = O(1/\gamma^2)$ since $\gamma$ is the smallest bias that needs to be detected. Once this many labels are available, $\yh(B)$ is set to a value in $\{-1,0,+1\}$ and remains fixed thereafter.
 
 These bias estimates will with high probability be seen to satisfy the following guarantee.
-\begin{defn}
-For any $B \in \B$, bias estimate $\yh(B) \in \{+1,-1,0\}$ is \emph{$\gamma$-accurate} if:
-\begin{itemize}
-\item $\yh(B) = +1 \implies \eta_X(B) > 0$
-\item $\yh(B) = -1 \implies \eta_X(B) < 0$
-\item $\yh(B) = 0 \implies |\eta_X(B)| < \gamma$
-\end{itemize}
-\label{def:accurate-bias-estimate}
-\end{defn}
-
 \subsection{Assigning labels to points}
 
 The label of any point is inferred from the biases of balls containing it. 
@@ -467,7 +446,7 @@ Pick any $x \in X$ and any level $\ell$. Once qualitative bias estimates $\yh(B)
 \item $\PL_\ell(x)$ includes $-1$ under a symmetrical condition.
 \end{itemize}
 This is made precise in Eqn~(\ref{eq:PL}) in Fig.~\ref{alg:main}. The label-estimate for $x$ at level $\ell$, denoted $\yh_\ell(x)$, is $+1$ if $\PL_\ell(x)=\{+1\}$, $-1$ if $\PL_\ell(x) = \{-1\}$, $0$ if $\PL_\ell(x) = \{\}$, and $!$ if $\PL_\ell(x) = \{-1,+1\}$ (Eqn~(\ref{eq:provisional-label})). 
-%The interpretation of $\yh_\ell(x) \in \{+1,-1,0\}$ is given in Definition~\ref{def:accurate-bias-estimate}. 
+The interpretation of $\yh_\ell(x) \in \{+1,-1,0\}$ is given in Definition~\ref{def:accurate-bias-estimate}. 
 
 The label $\yh_\ell(x) = \, !$ indicates that at level $\ell$, there is conflicting evidence about $x$; it is a ``known unknown''~\cite{R11}. Our active learning algorithm makes its \emph{focused queries} at level $\ell+1$ in the vicinity of such points $x$, that is, in $\B_{\ell+1}(x)$.
 
@@ -506,8 +485,6 @@ the other two challanges, which the detailed algorithm does address.
   both balls. However, selecting examples IID at random from the balls
   can create an undesired dependence between the estimates. This is solved using Poisson sampling, as described in section~\ref{sec:poisson}.
 \end{enumerate}
-
-\section{Detailed algorithm}
 
 We now describe the detailed active learning algorithm as shown in
 Figs~\ref{alg:main}, \ref{alg:sampling} and~\ref{alg:bias-estimate}.
@@ -611,7 +588,7 @@ Repeat:
 ! & \mbox{if $\PL_\ell(x) = \{-1,+1\}$}
 \end{array}
 \right.
-\label{eq:provisional-label}
+\label{eq:provisional-label1}
 \end{align}
 
 \end{itemize}
@@ -700,17 +677,35 @@ bias estimates for all balls $B \in \B$.
 
 In Fig.~\ref{alg:sampling}, we see that the points queried in a ball $B$ at level $\ell$ are $\{z \in X_B: T_z \leq \tau_\ell\}$, which from the definition of $\tau_\ell$ has size $O(k)$. We use these labels to estimate the bias of $B$. Since we need to detect biases of magnitude greater than $\gamma$, we set $k \propto 1/\gamma^2$. 
 %This intuition is borne out by the following result, proved in the appendix. 
+
+\pagebreak
+In the next definition and lemma we establish that the bias estimates for all balls in $\B$ are sufficiently accurate. 
+\begin{defn}
+\label{def:accurate-bias-estimate}
+For any $B \in \B$, bias estimate $\yh(B) \in \{+1,-1,0\}$ is \emph{$\gamma$-accurate} if:
+\begin{itemize}
+\item $\yh(B) = +1 \implies \eta_X(B) > 0$
+\item $\yh(B) = -1 \implies \eta_X(B) < 0$
+\item $\yh(B) = 0 \implies |\eta_X(B)| < \gamma$
+\end{itemize}
+\end{defn}
+
+
 \begin{lemma}
-Suppose that $k \geq (192/\gamma^2) \ln (4 |\B|/\delta)$. 
-Let $\yh(B)$ be defined as in Fig.~\ref{alg:bias-estimate}. Then with probability $\geq 1-\delta$, all the $\yh(B)$, for $B \in \B$, are $\gamma$-accurate in the sense of Definition~\ref{def:accurate-bias-estimate}.
-\label{lemma:accurate-bias-estimates}
+\label{lemma:accurate-bias-estimate}
+  Suppose that $k \geq (192/\gamma^2) \ln (4 |\B|/\delta)$.  Let
+  $\yh(B)$ be defined as in Fig.~\ref{alg:bias-estimate}.  Then with
+  probability $\geq 1-\delta$, all the $\yh(B)$, for $B \in \B$, are
+  $\gamma$-accurate in the sense of
+  Definition~\ref{def:accurate-bias-estimate}.
 \end{lemma}
 Henceforth assume $\yh(B)$ is $\gamma$-accurate for all  $B \in \B$.
 
 
 \subsection{Critical levels}
 
-Recall that $\PL_\ell(x) \subset \{-1,+1\}$ denotes the possible labels for $x$ given information from balls at levels $\leq \ell$, and is used to assign a value $\yh_\ell(x) \in \{-1,+1,0,!\}$. Despite randomness in querying, it is possible to define two critical levels for each $x$: a level $L_1(x)$ by which $\PL_\ell(x)$ reliably contains the correct label of $x$, and a level $L_2(x)$ by which $\PL_\ell(x)$ reliably omits the wrong label.
+Recall that $\PL_\ell(x) \subset \{-1,+1\}$ denotes the possible labels for $x$ given information from balls at levels $\leq \ell$, and is used to assign a value $\yh_\ell(x) \in \{-1,+1,0,!\}$. Despite randomness in querying, it is possible to define two critical levels for each $x$: a level $L_1(x)$ by which $\PL_\ell(x)$ reliably contains the correct label of $x$, and a level $L_2(x)$ by which $\PL_\ell(x)$ reliably omits the wrong label. Intuitively, background sampling dominates until level $L_1(x)$ is eached while focused sampling dominates between $L_1(x)$ and convergence at $L_2(x)$.
+Therefor, roughly speaking, the query complexity for point $x$ is low when $L_2(x)-L_1(x)$ is large relative to $L_1(x)$. The precise statement is given in Theorem~\ref{thm:queryComplexity}.
 
 \begin{defn}[Critical levels $L_1,L_2$]
 Pick any $x \in X$ with $\eta(x) \neq 0$ and let $s(x) = \sign(\eta(x))$. Define $L_1(x)$ to be the smallest level $\ell$ such that there exists $B_o \in \B_\ell(x)$ for which
@@ -757,7 +752,7 @@ All focused samples at level $\ell$ lie in $\{z \in \Delta_\ell: T_z \leq \tau_\
 
 We can now give generic label complexity bounds in terms of $L_1$, $L_2$, and $\Delta_\ell$. These take two equivalent forms: a \emph{global} version that specifies what parts of $X$ are correctly labeled after $m$ queries and a \emph{local} version that specifies the number of queries after which a particular $x$ is correctly labeled. The global version (Theorem~\ref{thm:label-complexity-0}) is in the Appendix; here is the local version.
 
-\begin{thm}[Local query complexity]
+\begin{thm}[Local query complexity] \label{thm:queryComplexity}
 Take $k \geq (192/\gamma^2) \ln (4 |\B|/\delta)$. With probability at least $1-2\delta$, the following holds simultaneously for all $x \in X$. Let $L_1(x)$ and $L_2(x)$ be the critical levels for $x$, as in Definition~\ref{defn:L12}. If $L_2(x) \leq \lg (n/2k)$, let
 \[
 m_o(x) = 32k \cdot \max\bigg( 2^{L_1(x)}, \ \frac{1}{n} \sum_{\ell=L_1(x)+1}^{L_2(x)} |\Delta_\ell| \, 2^\ell\bigg) .
@@ -781,9 +776,9 @@ To apply Theorem~\ref{thm:label-complexity}, we need bounds on the critical leve
 
 \begin{figure}[t]
 \begin{center}
-  \includegraphics[width=2.5in]{figures/Monotone.png}
+  \includegraphics[width=2.5in,height=1.7in]{figures/Monotone.png}
 %\hspace{.5in}
-\includegraphics[width=2.5in]{figures/Massart.png}
+\includegraphics[width=2.5in,height=1.7in]{figures/Massart.png}
 \end{center}
 \caption{(a) The conditional probability function $\eta$ is monotonically increasing; $\eta(x) = -\gamma, 0, \gamma$ at $x = \lambda_L, \lambda, \lambda_R$, respectively. (b) On each subinterval, $\eta$ is either $> \gamma$ or $<-\gamma$.}
 \label{fig:oned}
@@ -852,10 +847,9 @@ With probability $\geq 1-\delta$, after $m$ queries the algorithm correctly labe
 If $n^+, n^- = \Theta(n)$, that is, a constant fraction of the points lie to the left of $\lambda_L$ and to the right of $\lambda_R$, then the label complexity is $O(\log^2 n)$. If in addition $r^+, r^- = \Theta(n)$, that is, a constant fraction of the points lie between $\lambda_L, \lambda_R$ and the decision boundary, the label complexity is $O(\log n)$. 
 
 \subsection{Example: Massart noise}
+\label{sec:example-massart}
 
-In Section~\ref{sec:oned-massart}, we develop another one-dimensional example, in which $\X$ consists of several pieces, such that on each piece $\eta$ is either entirely above $\gamma$ or entirely below $-\gamma$ (Fig.~\ref{fig:oned}(b)). Once again, a logarithmic label complexity is obtained.
-
-
+In Section~\ref{sec:oned-massart}, we develop another one-dimensional example, in which $\X$ consists of several pieces, such that on each piece $\eta$ is either entirely above $\gamma$ or entirely below $-\gamma$ (Fig.~\ref{fig:oned}(b)). Once again, a logarithmic label complexity is obtained. (Details of the proof are in Section~(\ref{sec:oned-massart})
 
 \begin{figure}
 \begin{center}
@@ -872,10 +866,10 @@ In Section~\ref{sec:oned-massart}, we develop another one-dimensional example, i
 \section{Experiments}
 
 We describe an experiment designed to evaluate our algorithm.
-We use a simple 1D problem, described in figure~\ref{fig:oned}(b)
-(Massard Noise).  Although this problem is simple, it is outside the scope of most non-parametric active learning algorithms, which assume smoothness of the conditional probability.
+We use a simple 1D problem, described in Section~\ref{sec:example-massart}.
+Although this problem is simple, it is outside the scope of most non-parametric active learning algorithms, which assume smoothness of the conditional probability.
 
-We compare two algorithms, the "active" agorithm described here, and the "passive" algorithm which uses only "background queries". We denote the difference between the error of the generated classifier and that of the Bayes optimal classifier by $\epsilon$. From the theory, we expect the query complexity of the passive algorithm to be $O(\frac{1}\epsilon})$ and of the active algorithm to be $O(\log (\frac{1}{\epsilon})$. 
+We compare two algorithms, the "active" agorithm described here, and the "passive" algorithm which uses only "background queries". We denote the difference between the error of the generated classifier and that of the Bayes optimal classifier by $\epsilon$. From the theory, we expect the query complexity of the passive algorithm to be $O(\frac{1}{\epsilon})$ and of the active algorithm to be $O(\log (\frac{1}{\epsilon})$. 
 
 
  For our experiment we used a sample of 10,000 unlabeled points, we repeated each of our experiments 20 times. In Figure~\ref{fig:Experiments} we show the average performance of these experiments. Note the horizontal line segments marked "active vs. passive ... ", these compare the number of queries required by the active and the passive algorithms for different accuracies
@@ -1050,7 +1044,7 @@ as claimed.
 \end{proof}
 
 
-\subsubsection{Accuracy of bias estimates: Proof of Lemma~\ref{lemma:accurate-bias-estimates}}
+\subsubsection{Accuracy of bias estimates: Proof of Lemma~\ref{lemma:accurate-bias-estimate}}
 
 We will use Lemma~\ref{lemma:large-deviation-discrete} to obtain a uniform guarantee on the bias estimates for all balls $B \in \B$.
 
@@ -1112,7 +1106,7 @@ for all $B \in \B$.
 
 \subsection{Critical levels: Proof of Lemma~\ref{lemma:boundary}}
 
-For part (a), note that some $B_o \in \B_{L_1(x)}(x)$ has significant bias (that is, bias $\geq \gamma$) towards the correct label $s(x)$, as does any ball $B \in \B(x)$ contained within it. For $\ell \geq L_1(x)$, the set $\{B \in \B_{\leq \ell}(x): X_{B} \subseteq X_{B_o}\}$ is nonempty (it contains $B_o$); pick any minimal ball $B$ within it. Then $\yh(B) = s(x)$ by the $\gamma$-accuracy of bias estimates (Lemma~\ref{lemma:accurate-bias-estimates}) and thus $s(x) \in \PL_\ell(x)$.
+For part (a), note that some $B_o \in \B_{L_1(x)}(x)$ has significant bias (that is, bias $\geq \gamma$) towards the correct label $s(x)$, as does any ball $B \in \B(x)$ contained within it. For $\ell \geq L_1(x)$, the set $\{B \in \B_{\leq \ell}(x): X_{B} \subseteq X_{B_o}\}$ is nonempty (it contains $B_o$); pick any minimal ball $B$ within it. Then $\yh(B) = s(x)$ by the $\gamma$-accuracy of bias estimates (Lemma~\ref{lemma:accurate-bias-estimate}) and thus $s(x) \in \PL_\ell(x)$.
 
 For (b), take any $\ell \geq L_2(x)$. Consider any $B \in \B_{\leq \ell}(x)$ for which $s(x) \cdot \eta_X(B) < 0$. By definition of $L_2(x)$, this $B$ must lie in $B_{< L_2(x)}(x)$, and moreover there must exist $B' \in \B_{\leq L_2(x)}(x) \subset \B_{\leq \ell}(x)$ with $X_{B'} \subset X_B$ and $s(x) \cdot \eta_X(B') \geq 0$. Thus, any minimal $B \in \B_{\leq \ell}(x)$ has bias $\geq 0$ towards the correct label $s(x)$, whereupon $\yh(B) \in \{0, s(x)\}$ by the $\gamma$-accuracy of bias estimates. Therefore, $-s(x) \not\in \PL_\ell(x)$.
 
@@ -1407,13 +1401,13 @@ Theorem~\ref{thm:label-complexity} thus still holds with $n \cdot \mu(\partial_{
 
 Using these notions, we are able to specialize the generic label complexity bound of Theorem~\ref{thm:label-complexity} to get rates under suitable margin conditions; this is given in Theorem~\ref{thm:label-complexity-specific} in the appendix. Here we just give a concrete scenario handled by the latter result; another such scenario, with smoothness and Tsybakov noise conditions, appears in the appendix.
 
-%\begin{figure}[t]
-%\begin{center}
-%\includegraphics[width=3in]{curvature.pdf}
-%\end{center}
-%\caption{{\bf A 2D example with bounded curvature:} {\em Left:} We have $\eta = -0.2$ for the orange/red part of the domain and $\eta=0.2$ for the light and dark blue. The orange and light blue indicate the boundary sets for negative and positive respectively. {\em Right:} examples of the $L_1,L_2$ balls for different points. The green $L_1$ circles are the largest monochrome circle that contains the point. The purple $L_2$ circles are the union of all circles of half the radius or smaller. All of these circles are monochrome.}
-%\label{fig:curvature}
-%\end{figure}
+\begin{figure}[t]
+\begin{center}
+\includegraphics[width=3in]{figures/curvature.pdf}
+\end{center}
+\caption{{\bf A 2D example with bounded curvature:} {\em Left:} We have $\eta = -0.2$ for the orange/red part of the domain and $\eta=0.2$ for the light and dark blue. The orange and light blue indicate the boundary sets for negative and positive respectively. {\em Right:} examples of the $L_1,L_2$ balls for different points. The green $L_1$ circles are the largest monochrome circle that contains the point. The purple $L_2$ circles are the union of all circles of half the radius or smaller. All of these circles are monochrome.}
+\label{fig:curvature}
+\end{figure}
 
 
 \subsection{Example: Curvature and Massart noise}
