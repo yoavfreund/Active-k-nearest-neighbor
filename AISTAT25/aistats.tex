@@ -151,8 +151,8 @@ is discontinuous and hence not smooth.
 We begin with a large collection of \emph{balls}, $\B$, of varying
 sizes (Fig.~\ref{fig:challenges}(a)). We use label queries to assign
 \emph{biases} $\yh(B) \in \{-1,0,+1\}$ to balls $B \in \B$, beginning
-with the largest balls. A bias of $+1$ means that the average
-$\eta(x)$ in $B$ is significantly positive; bias $-1$ means it is
+with the largest balls. A bias of $+1$ means that the average of 
+$\eta(x)$ over $s \in B$ is significantly positive; bias $-1$ means it is
 significantly negative; and bias $0$ means the average $\eta$ is close
 to 0. As time goes on, we get biases for progressively smaller balls,
 as needed. The final label assigned to any point $x$ is based on the
@@ -214,13 +214,35 @@ There are three key challenges to be addressed.
 
 \end{enumerate}
 
-These three challenges go beyond earlier work in active learning, which was able to avoid problems like mind-changes by making smoothness assumptions on $\eta$. By tackling all three of them, we are able to give a
-universal active learning scheme. 
+These three challenges go beyond earlier work in active learning,
+which was able to avoid problems like mind-changes by making
+smoothness assumptions on $\eta$. By tackling all three of them, we
+are able to give a universal active learning scheme. Our focus is on
+the query complexity of the algorithm, largely ignoring the
+computational complexity. However, we do provide some experimental results that demonstrate that the algorithm works on a toy example.
 
-The rest of the paper is organized as follows. Section~\ref{sec:relatedwork} describes related work.
-Section~\ref{sec:algorithm} presents the active learning algorithm and Section~\ref{sec:discrete} analyzes it in generality, taking $X$ to be an arbitrary point-set and allowing any $\eta$ function. We identify two \emph{critical levels} for any $x \in X$: two scales (of ball sizes) that control how many queries are sufficient for $x$ to be correctly labeled (Theorem~\ref{thm:label-complexity}). We instantiate these bounds in canonical one-dimensional settings (Theorems~\ref{thm:oned-massart} and \ref{thm:oned-monotonic}) to get label complexities logarithmic in $|X|$.
+The rest of the paper is organized as
+follows. Section~\ref{sec:relatedwork} describes related work.
+Section~\ref{sec:algorithm} presents the active learning algorithm and
+Section~\ref{sec:discrete} analyzes it in the finite population
+setting, taking $X$ to be an arbitrary point-set and allowing any
+$\eta$ function. We identify two \emph{critical levels} for any
+$x \in X$: two scales (of ball sizes) that control how many queries
+are sufficient for $x$ to be correctly labeled
+(Theorem~\ref{thm:label-complexity}). We instantiate these bounds in
+canonical one-dimensional settings (Theorems~\ref{thm:oned-massart}
+and \ref{thm:oned-monotonic}) to get label complexities logarithmic in
+$|X|$. In section~\ref{sec:experiment} we describe an experiment that supports the theoretical bound given in Theorems~\ref{thm:oned-massart}.
 
-Section~\ref{sec:continuous} considers the statistical setting where $X$ is drawn from an underlying distribution $\mu$ on $\X$. We give rates of convergence under distributional conditions (Theorem~\ref{thm:label-complexity-specific}), and instantiate them under common assumptions from learning theory and computational geometry.
+The supplementary material in
+Section~\ref{sec:FinitePopulationProofs}, which contains the proofs of
+the theorems from Section~\ref{sec:discrete}.  Finally,
+Section~\ref{sec:continuous} considers the statistical setting where
+$X$ is drawn from an underlying distribution $\mu$ on $\X$. We give
+rates of convergence under distributional conditions
+(Theorem~\ref{thm:label-complexity-specific}), and instantiate them
+under common assumptions from learning theory and computational
+geometry.
 
 \subsection{Related work} \label{sec:relatedwork}
 
@@ -237,7 +259,7 @@ $\mbox{sign}(\eta(x))$, is to query that point repeatedly; absent
 smoothness assumptions, the sign can change abruptly in an arbitrarily
 small ball around $x$. On the other hand, the bias of a region
 $B$---the sign of the average $\eta$ value in $B$---is easy to
-determine given a reasonable number of points from that region.
+determine given a reasonable number of queries chosen at random from that region.
 
 Early results of \cite{CN08} established upper and lower bounds on label complexity in situations where the Bayes-optimal boundary is of a simple form: a single threshold for one-dimensional data or a ``smooth boundary fragment'' in higher dimension.
 
@@ -266,7 +288,7 @@ $\frac{|X|}{\gamma^2}\log \frac{1}{\gamma^2}$ which is the expected
 \section{Definitions}
 
 The two basic entities in our algorithm are the collection of points
-$X$ and a collection $\B$ of balls. Sampling is organized around a the
+$X$ and a collection of balls $\B$. Sampling is organized around a the
 collection $\B$. Balls are the atomic sets on which we assess label
 bias.
 
@@ -309,9 +331,9 @@ subsection~\ref{sec:detailedalgorithm}.
 \vspace{.1in}
 \textbf{Repeat for $\ell=0,1,2,\ldots,\log |X|-1$:}
 \begin{enumerate}[leftmargin=0.6cm]
-\item \label{step:Uell} {\bf Compute uncertainty set:}\\ If $\ell=0$, set $U_0 = X$; otherwise set $U_\ell = \{x \in X: \yh_{\ell-1}(x) = \,!, \ \yh_\ell(x) = \bot\}$t
-\item \label{step:QS} {\bf Compute Focused Query set:}\\ Compute query ball set be $R=  \bigcup_{x \in U} \B_\ell(x)$
-and focused query set $S=\bigcup_{B \in R} B$
+\item \label{step:Uell} {\bf Compute uncertainty region:}\\ If $\ell=0$, set $U_0 = X$; otherwise set $U_\ell = \{x \in X: \yh_{\ell-1}(x) = \,!, \ \yh_\ell(x) = \bot\}$t
+\item \label{step:QS} {\bf Compute Focused Query region:}\\ Compute query region be $R=  \bigcup_{x \in U} \B_\ell(x)$
+and focused query region $S=\bigcup_{B \in R} B$
 \item \label{step:sample} {\bf Make queries:}\\
 \textbf{Repeat until} number of queries in each ball $B \in R$ is at least $C/\gamma^2$
   \begin{enumerate}[leftmargin=0.6cm]
@@ -356,24 +378,24 @@ and focused query set $S=\bigcup_{B \in R} B$
 \label{alg:simple}
 \end{figure*}
 
-\subsection{Simplified algorithm}
+\subsection{The simplified algorithm}
 
 We now describe the simplified algorithm here referred to simply as
 the algorithm. The algorithm loops over increasing levels.  At each
-level it identifies the set of ``known unknowns'' which approximates
+level it identifies the region of ``known unknowns'' which approximates
 the boundary. The algorithm then makes queries in the vicinity of the
 boundary to refine it and proceeds to the next finer level.
 
 What follows is a detailed explanation of  Figure~\ref{alg:simple}.
-
 The outer loop of the algorithm iterates over the
 levels, starting with $\ell=0$ that corresponds to balls that contain
 at least half of the points in $X$, and ending with $\ell=\log |X|-1$,
-corresponding to balls that contain a single point.
+corresponding to balls that contain a single point. Initially, all balls are labeled $\bot$, which indicates that there are not enough queries inside the ball to determine it's label.
 
-The loop consists of five steps. The first computes the uncertainty set, the second computes the focused query
-set, the third defines the sampling process, the fourth and fifth
-update the labels of the balls and the points respectively.
+The loop consists of five steps. The first computes the {\em uncertainty
+region}, the second computes the {\em focused query region}, the third defines the
+sampling process, the fourth and fifth update the labels of the balls
+and the points respectively.
 
 In step~\ref{step:Uell} the {\em uncertainty region} $U_\ell$ is
 calculated. Intuitively $U_l$ is the set of points whose label
@@ -384,14 +406,14 @@ These are the points for which we need better estimates.
 In step~\ref{step:QS} the algorithm identifies the balls that needs to
 be queried in order to get more information about $U_\ell$. These are
 the balls in $\B_l$ that contain at least one point of $U_\ell$.  The
-set $S$ is the union of these balls and defines the ``focus area''
-which is queried in order to reduce the known unknowns.
+region $S$ is the union of these balls and defines the set
+from which queries are selected in order to reduce the known unknowns.
 
 In step~\ref{step:sample} the algorithm queries points inside the
-focus area repeatedly at random.  This step terminates once there are
-$C/\gamma^2$ samples in each of the balls in the focus area.
+focus region repeatedly at random.  This step terminates once there are
+$C/\gamma^2$ samples in each of the balls in the focus region.
 
-Step ~\ref{step:balls} associates a label with each ball. The
+Step ~\ref{step:balls} associates a label with each ball in the focus region. The
 label is one of $\{-1,+1,0\}$.  The labels $+1$ and $-1$ correspond to
 a confident statement that $\eta(B)>0$ and $\eta(B)<0$
 respectively. Finally, the label $0$ indicates that the sign of $B$
@@ -403,7 +425,7 @@ examples.  This is done in two sub-steps. First the {\em Possible
 contains $+1$ if there is a ball containing $x$ whose label is $+1$,
 symmetrically for $-1$. The label $\yh_\ell(x)$ is determined by the
 possible labels set $\PL_\ell(x)$ as described in
-step~\ref{step:examples}. The most significant label is ``!'', which
+Equation~\ref{eq:provisional-label}. The most significant label is ``!'', which
 indicates balls with conflicting polarity containing $x$. Points
 labeled ``!'' determine the uncertainty region and the focused query
 region in the following level and the process repeats.
@@ -476,7 +498,7 @@ the other two challanges, which the detailed algorithm does address.
   will cause the algorithm to miss some uncertainty region if they are
   appear at a lower level. Therefor the full algorithm does not loop
   over levels. Instead, at each iteration it finds the lowest level
-  where the uncertainty set is not empty and makes two queries, one
+  where the uncertainty region is not empty and makes two queries, one
   focused and one background.
 
 \item {\bf Managing Sampling:}\\
@@ -511,7 +533,7 @@ The querying process can be stopped at any time, whereupon labels are assigned a
 \yh(x) = 
 \left\{
 \begin{array}{cl}
-  \yh_\ell(x) & \mbox{largest $\ell$ with $\yh_\ell(x) \in \{-1,+1\}$,1}\\
+  \yh_\ell(x) & \mbox{largest $\ell$ with $\yh_\ell(x) \in \{-1,+1\}$}\\
   & \mbox{if such an $\ell$ exists} \\
 0 & \mbox{``don't know'', otherwise}
 \end{array}
@@ -631,7 +653,7 @@ Repeat:
 {\bf Focused-query}($\ell, U$)
 
 \begin{itemize}[leftmargin=0.5cm]
-\item Define querying region:
+\item Define focus region:
 $$ S =  \bigcup_{x \in U} \bigcup_{B \in \B_\ell(x)} \{z \in X_B: T_z \leq \tau_\ell\} $$
 \item Query the next unlabeled point in $S \setminus Q$, ordered by increasing $T_x$ values, and add to $Q$
 \end{itemize}
@@ -678,7 +700,6 @@ bias estimates for all balls $B \in \B$.
 In Fig.~\ref{alg:sampling}, we see that the points queried in a ball $B$ at level $\ell$ are $\{z \in X_B: T_z \leq \tau_\ell\}$, which from the definition of $\tau_\ell$ has size $O(k)$. We use these labels to estimate the bias of $B$. Since we need to detect biases of magnitude greater than $\gamma$, we set $k \propto 1/\gamma^2$. 
 %This intuition is borne out by the following result, proved in the appendix. 
 
-\pagebreak
 In the next definition and lemma we establish that the bias estimates for all balls in $\B$ are sufficiently accurate. 
 \begin{defn}
 \label{def:accurate-bias-estimate}
@@ -734,7 +755,7 @@ Pick any $x \in X$ with $\eta(x) \neq 0$ and let $s(x) \in \{+1,-1\}$ denote its
 
 \subsection{Boundary sets and label complexity}
 
-A common intuition about active learning is that successive queries gradually constrain the possible locations of the decision boundary. Let's consider the state of affairs when all balls at level $\leq \ell - 1$ have been sampled. The known-unknowns from this level are points $x$ with $\yh_{\ell-1}(x) = \, !$; by Lemma~\ref{lemma:boundary}(b), such points must have $L_2(x) \geq \ell$. Focused sampling at level $\ell$ is restricted to balls that contain these points. We will think of this region as the \emph{boundary set} at level $\ell$.
+A common intuition about active learning is that successive queries gradually constrain the possible locations of the decision boundary. Let's consider the state of affairs when all balls at level $\leq \ell - 1$ have been sampled. The known-unknowns from this level are points $x$ with $\yh_{\ell-1}(x) = \, !$; by Lemma~\ref{lemma:boundary}(b), such points must have $L_2(x) \geq \ell$. Focused sampling at level $\ell$ is restricted to balls that contain these points. We will think of this set as the \emph{boundary set} at level $\ell$.
 \begin{defn}[Boundary set $\bf \Delta_\ell$]
 For any level $\ell$, define the \emph{boundary set} at level $\ell$ to be
 \begin{equation}
@@ -772,7 +793,7 @@ A footnote: Our algorithm queries points at most once. However, in some applicat
 
 \section{One-dimensional examples}
 
-To apply Theorem~\ref{thm:label-complexity}, we need bounds on the critical levels $L_1(x)$ and $L_2(x)$ for each $x \in X$, and on the size of the sampling region $\Delta_\ell$ at each level $\ell$. We now derive these in some canonical settings.
+To apply Theorem~\ref{thm:label-complexity}, we need bounds on the critical levels $L_1(x)$ and $L_2(x)$ for each $x \in X$, and on the size of the sampling set $\Delta_\ell$ at each level $\ell$. We now derive these in some canonical settings.
 
 \begin{figure}[t]
 \begin{center}
@@ -837,7 +858,7 @@ where $r(x)$ is the number of data points between $x$ and $\lambda$, counting $x
 %\item $L_2(x) \leq \lg (n/r(x))$, 
 %\end{itemize}
 
-A counting argument then shows that the boundary region shrinks exponentially as the level increases, $|\Delta_\ell| \leq 4n/2^\ell$, yielding the following label complexity. 
+A counting argument then shows that the boundary set shrinks exponentially as the level increases, $|\Delta_\ell| \leq 4n/2^\ell$, yielding the following label complexity. 
 \begin{thm}
 Define $r^+ = \min \{r(x): x \in X \cap [\lambda_R,1]\}$ and $r^- = \min \{r(x): x \in X \cap [0,\lambda_L]\}$. Pick any $0 < \delta < 1$. Suppose we run the algorithm of Fig.~\ref{alg:main} with $k = O((\log (n/\delta))/\gamma^2)$ and that $\min(r^+, r^-) \geq 2k$.  Take any 
 $$ m \geq 64k \cdot \max \left( \frac{n}{\min(n^+,n^-)}, \ 2 \lg \frac{\min(n^+,n^-)}{\min(r^+,r^-)} \right) .$$
@@ -864,7 +885,7 @@ In Section~\ref{sec:oned-massart}, we develop another one-dimensional example, i
 \end{figure}
 
 \section{Experiments}
-
+\label{sec:experiment}
 We describe an experiment designed to evaluate our algorithm.
 We use a simple 1D problem, described in Section~\ref{sec:example-massart}.
 Although this problem is simple, it is outside the scope of most non-parametric active learning algorithms, which assume smoothness of the conditional probability.
@@ -872,8 +893,9 @@ Although this problem is simple, it is outside the scope of most non-parametric 
 We compare two algorithms, the "active" agorithm described here, and the "passive" algorithm which uses only "background queries". We denote the difference between the error of the generated classifier and that of the Bayes optimal classifier by $\epsilon$. From the theory, we expect the query complexity of the passive algorithm to be $O(\frac{1}{\epsilon})$ and of the active algorithm to be $O(\log (\frac{1}{\epsilon})$. 
 
 
- For our experiment we used a sample of 10,000 unlabeled points, we repeated each of our experiments 20 times. In Figure~\ref{fig:Experiments} we show the average performance of these experiments. Note the horizontal line segments marked "active vs. passive ... ", these compare the number of queries required by the active and the passive algorithms for different accuracies
+ For our experiment we used a sample of 10,000 unlabeled points, we repeated each of our experiments 20 times. In Figure~\ref{fig:Experiments} we show the average performance of these experiments. Note the horizontal line segments marked "active vs. passive <error>", these compare the number of queries required by the active and the passive algorithms for different accuracies
  These numbers are repeated in the following table.
+\begin{center}
 \begin{tabular}{|c|rr|}
 \hline
 err-opt &  Active&  Passive \\
@@ -883,6 +905,8 @@ err-opt &  Active&  Passive \\
 0.005 &678 &    2045 \\
 \hline
 \end{tabular}
+\end{center}
+
 Considering the columns for the Active and Passive algorithms respectively, we see that the experimental query complexities concur with the theoretical predictions.
 
 \section{Future Directions}
@@ -891,8 +915,8 @@ any sets can be used. While this generality is attractive, it leaves
 open the question of what are good ways to define the collection of
 regions. Another aspect of this generality is that the computational
 complexity of the algorithm is high. Future work will be directed
-towards characterizing region sets that give both high query
-efficiency and low computational complexity.
+towards characterizing collections of regions that give both low query
+complexity and low computational complexity.
 
 
 %\input{active-knn.bbl}
@@ -988,11 +1012,12 @@ Supplementary Materials}
 \end{center}
 
 %%%%%%%%%%%%
-\section{Analysis Details: Discrete setting}
+\section{Analysis Details: Finite Population setting}
+\label{sec:FinitePopulationProofs}
 
-\subsection{Technicalities: discrete setting}
+\subsection{Technicalities: finite population setting}
 
-\subsubsection{Large deviation bounds for the discrete setting}
+\subsubsection{Large deviation bounds for the finite population setting}
 
 \begin{lemma}
 Fix a confidence parameter $0 < \delta < 1$ and a positive integer $k \geq 6 \ln (4/\delta)$. 
@@ -1112,7 +1137,7 @@ For (b), take any $\ell \geq L_2(x)$. Consider any $B \in \B_{\leq \ell}(x)$ for
 
 \subsection{The region of focused sampling: Proof of Lemma~\ref{lemma:focused}}
 
-Let $\overline{U}_\ell$ denote the set of all points that are ever (in any round of sampling) in the uncertainty set at level $\ell$. From Lemma~\ref{lemma:boundary}(b), we see that any $x$ with $L_2(x) < \ell$ has $\yh_{\ell-1}(x) \neq \ !$ and thus never makes it into the uncertainty set at level $\ell$. In short,
+Let $\overline{U}_\ell$ denote the set of all points that are ever (in any round of sampling) in the uncertainty region at level $\ell$. From Lemma~\ref{lemma:boundary}(b), we see that any $x$ with $L_2(x) < \ell$ has $\yh_{\ell-1}(x) \neq \ !$ and thus never makes it into the uncertainty region at level $\ell$. In short,
 \begin{equation}
 \overline{U}_{\ell} \subset \{x \in X: L_2(x) \geq \ell\}.
 \label{eq:uncertainty}
@@ -1175,7 +1200,7 @@ Now let's move on to phase two. Let $A = \{x \in X: L_1(x) \leq \ell_1, L_2(x) \
 
 We will break the argument into two cases. 
 
-{\it Case 1:} Fewer than $m/4$ focused queries are made in phase two. This can only happen if some round of sampling has an empty uncertainty set, meaning that all of $A$ has left $U$ at that point.
+{\it Case 1:} Fewer than $m/4$ focused queries are made in phase two. This can only happen if some round of sampling has an empty uncertainty region, meaning that all of $A$ has left $U$ at that point.
 
 {\it Case 2:} A full $m/4$ focused queries are made in phase two. By the analysis of phase one, none of these queries can be at level $\leq \ell_1$ and by Lemma~\ref{lemma:focused}, the total number of possible focused queries at levels $\ell_1+1$ through $\ell_2$ inclusive is at most
 $$\sum_{\ell=\ell_1+1}^{\ell_2} |\{z \in \Delta_{\ell}: T_z \leq \tau_\ell \}| 
