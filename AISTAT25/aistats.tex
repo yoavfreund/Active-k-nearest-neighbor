@@ -7,6 +7,11 @@
 \usepackage{amssymb}
 \usepackage{graphicx}
 
+\usepackage{titlesec}
+\titlespacing*{\section}{0pt}{0pt}{0pt}
+\titlespacing*{\subsection}{0pt}{0pt}{0pt}
+\titlespacing*{\subsubsection}{0pt}{0pt}{0pt}
+
 
 \def\R{{\mathbb{R}}}
 \def\pr{{\rm Pr}}
@@ -93,11 +98,11 @@
 \begin{abstract}%
   We present a general-purpose active learning scheme that maintains a
   collection of balls of different sizes and uses label
-  queries to identify those with a strong bias towards one particular
+  queries to identify those with a strong bias towards a particular
   label. When two such balls intersect and have different
   labels, the region of overlap is treated as a ``known unknown'' and
   is targeted in future active queries. We give label complexity
-  bounds for this method that do not rely on assumptions about the
+  bounds for this method that do not rely on any assumptions about the
   data, and we instantiate them in several cases of interest.
 \end{abstract}
 
@@ -146,6 +151,14 @@ is discontinuous.
 
 \subsection{Approach}
 
+As is well known~\cite{CH67, S80}, the $k$-NN method converges to
+Bayes optimal rule without any assumptions on the underlying
+distribution. Convergence rate is not uniform. It is slower at points
+close to the decision boundary and faster at points further from the
+boundary.  Our goal is to mimic the asymptotic performance of $k$-NN
+while achieving lower query complexity by reducing the number of
+queries far from the boundary.
+
 We begin with a large collection of \emph{balls}, $\B$, of varying
 sizes (Fig.~\ref{fig:challenges}(a)). We use label queries to assign
 \emph{biases} $\yh(B) \in \{-1,0,+1\}$ to balls $B \in \B$, beginning
@@ -153,7 +166,7 @@ with the largest balls. A bias of $+1$ means that the average of
 $\eta(x)$ over $x \in B$ is significantly positive; bias $-1$ means it is
 significantly negative; and bias $0$ means the average $\eta$ is close
 to 0. As time goes on, we get biases for progressively smaller balls,
-as needed. The final label assigned to any point $x$ is based on the
+as needed. The label $\yh(x)$ assigned to any point $x \in X$ is based on the
 biases of balls containing $x$.
 
 \begin{figure}
@@ -263,17 +276,20 @@ the query complexity of the algorithm, largely ignoring the
 computational complexity. However, we do provide some experimental results that demonstrate that the algorithm works on a toy example.
 
 The rest of the paper is organized as
-follows. Section~\ref{sec:relatedwork} describes related work.
-Section~\ref{sec:algorithm} presents the active learning algorithm and
-Section~\ref{sec:discrete} analyzes it in the finite population
-setting, taking $X$ to be an arbitrary point-set and allowing any
-$\eta$ function. We identify two \emph{critical levels} for any
-$x \in X$: two scales (of ball sizes) that control how many queries
-are sufficient for $x$ to be correctly labeled
+follows. Section~\ref{sec:relatedwork} describes related
+work. Section~\ref{sec:definitions} defines some terminology and
+notation.  Section~\ref{sec:algorithm} presents the active learning
+algorithm and Section~\ref{sec:discrete} analyzes it in the finite
+population setting, taking $X$ to be an arbitrary point-set and
+allowing any $\eta$ function. We identify two \emph{critical levels}
+for any $x \in X$: two scales (of ball sizes) that control how many
+queries are sufficient for $x$ to be correctly labeled
 (Theorem~\ref{thm:label-complexity}). We instantiate these bounds in
 canonical one-dimensional settings (Theorems~\ref{thm:oned-massart}
 and \ref{thm:oned-monotonic}) to get label complexities logarithmic in
-$|X|$. In section~\ref{sec:experiment} we describe an experiment that supports the theoretical bound given in Theorem~\ref{thm:oned-massart}.
+$|X|$. In section~\ref{sec:experiment} we describe an experiment that
+supports the theoretical bound given in
+Theorem~\ref{thm:oned-massart}.
 
 The supplementary material in
 Section~\ref{sec:FinitePopulationProofs} contains the proofs of
@@ -329,7 +345,7 @@ $\frac{|X|}{\gamma^2}\log \frac{1}{\gamma^2}$ which is the expected
 \fi
 
 \section{Definitions}
-
+\label{sec:definitions}
 The two basic entities in our algorithm are the collection of points
 $X$ and a collection of balls $\B$. Sampling is organized around $\B$:
 these balls are the atomic sets on which we assess label
@@ -426,17 +442,17 @@ and the focused query region is their union, $S=\bigcup_{B \in R} B$
 
 \subsection{The simplified algorithm}
 
-We now describe the simplified algorithm, here referred to simply as
-the algorithm. The algorithm loops over increasing levels.  At each
-level it identifies the region of ``known unknowns'' which approximates
-the boundary. The algorithm then makes queries in the vicinity of the
-boundary to refine it and proceeds to the next finer level.
+We now describe the simplified algorithm. The algorithm loops over
+increasing levels.  At each level it identifies the region of ``known
+unknowns'' which approximates the boundary. The algorithm then makes
+queries in the vicinity of the boundary to refine it and proceeds to
+the next finer level.
 
-What follows is a detailed explanation of  Figure~\ref{alg:simple}.
+Figure~\ref{alg:simple} contains the pseudo-code of the simplified algorithm.
+What follows is a detailed explanation of this code.
 The outer loop of the algorithm iterates over
-levels, starting with $\ell=0$ that corresponds to balls with at least half of the points in $X$, then moving onto $\ell=1$ which has balls with between $1/4$ and $1/2$ of the points in $X$, and so on.
-%and ending with $\ell=\log |X|-1$,
-%corresponding to balls that contain a single point. %Initially, all balls are labeled $\bot$, which indicates that there are not enough queries inside the ball to determine it's label.
+levels, starting with $\ell=0$ that corresponds to balls with at least half of the points in $X$, then
+$\ell=1$ which has balls with between $1/4$ and $1/2$ of the points in $X$, and so on.
 
 The loop consists of five steps. The first computes the {\em uncertainty
 region}, the second computes the {\em focused query region}, the third defines the
@@ -531,7 +547,7 @@ The label $\yh_\ell(x) = \, !$ indicates that at level $\ell$, there is conflict
 
 The simplified algorithm addresses the first challenge of ``where
 to query'' (see challenges in the introduction). It does not address
-the other two challenges, which the detailed algorithm does address.
+the other two challenges, addressed here with the detailed algorithm.
 
 \paragraph{No smoothness assumptions.} As discussed in the introduction, one
 is \emph{never} sure of having correctly determined the label of any 
@@ -539,10 +555,10 @@ specific point $x$. Thus in addition to focused (active) querying, we also
 do background sampling of the entire space to pick up on possible mind
 changes. For the sake of simplicity, we make one background query per focused query.
 
-A related problem is that having the outer loop iterate over levels will
+A related problem is that having the outer loop iterate over levels might
 cause the algorithm to miss uncertain regions that later appear in lower
 levels as a result of background sampling (the so-called mind changes).
-Instead, each iteration of the full algorithm looks for the lowest level 
+Instead, each iteration of the detailed algorithm looks for the lowest level 
 in which the uncertainty region is non-empty, and makes just two queries, 
 one focused and one background.
 
@@ -610,7 +626,6 @@ The querying process can be stopped at any time, whereupon labels are assigned a
 
 \subsubsection{Poisson Sampling}
 \label{sec:poisson}
-
 
 The uncertainty region at level $\ell$ consists of the known-unknowns
 from level $\ell-1$, that is, points $x \in X$ with
@@ -973,7 +988,7 @@ We describe an experiment designed to evaluate our algorithm.
 We use a simple 1D problem, described in Section~\ref{sec:example-massart}.
 Although this problem is simple, it is outside the scope of nonparametric active learning algorithms that assume smoothness of the conditional probability.
 
-We compare two algorithms, the ``active'' agorithm described here, and the ``passive'' algorithm which uses only background queries. We denote the difference between the error of the generated classifier and that of the Bayes optimal classifier by $\epsilon$. From the theory, we expect the query complexity of the passive algorithm to be $O(\frac{1}{\epsilon})$ and of the active algorithm to be $O(\log (\frac{1}{\epsilon}))$. 
+We compare two algorithms, the ``active'' algorithm described here, and the ``passive'' algorithm which uses only background queries. We denote the difference between the error of the generated classifier and that of the Bayes optimal classifier by $\epsilon$. From the theory, we expect the query complexity of the passive algorithm to be $O(\frac{1}{\epsilon})$ and of the active algorithm to be $O(\log (\frac{1}{\epsilon}))$. 
 
 
  For our experiment we used a sample of 10,000 unlabeled points and repeated each of our experiments 20 times. In Figure~\ref{fig:Experiments} we show the average performance of these experiments. The horizontal line segments marked ``active vs. passive [error]'' compare the number of queries required by the active and the passive algorithms for different accuracies. These numbers are repeated in the following table.
